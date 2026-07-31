@@ -32,6 +32,10 @@ SECRET_KEY = config("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", cast=bool)
 
+
+
+
+
 ALLOWED_HOSTS = []
 
 
@@ -86,6 +90,18 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'CRM_PROJECT',
+#         'USER': 'postgres',
+#         'PASSWORD':'abinaaziz123',
+#         'HOST':'localhost',
+#         'PORT': '5432',
+#     }
+# }
 
 
 # Password validation

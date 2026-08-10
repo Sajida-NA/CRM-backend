@@ -32,4 +32,7 @@ urlpatterns = [
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh",),
 
     path("api/test/", TestView.as_view()),
+
+
+     path("api/leads/",include("apps.leads.urls")),
 ]

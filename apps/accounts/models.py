@@ -16,6 +16,17 @@ class User(AbstractUser):
 
     email = models.EmailField(unique=True)
 
+    first_name = models.CharField(
+        max_length=150
+    )
+
+    last_name = models.CharField(
+        max_length=150
+    )
+
+    # when normal user becomes a lead user ,the value of is_lead=true
+    is_lead = models.BooleanField(default=False) 
+
     phone_number = models.CharField( max_length=15,unique=True)
 
     company_name = models.CharField(max_length=255)

@@ -259,38 +259,81 @@ class ForgotPasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# class ResetPasswordView(APIView):
+#     permission_classes = []
+
+#     def post(self, request):
+#         serializer = ResetPasswordSerializer(data=request.data)
+
+#         if serializer.is_valid():
+#             uid = serializer.validated_data["uid"]
+#             token = serializer.validated_data["token"]
+#             new_password = serializer.validated_data["new_password"]
+
+#             try:
+#                 user_id = force_str(urlsafe_base64_decode(uid))
+#                 user = User.objects.get(pk=user_id)
+#             except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+#                 return Response(
+#                     {"error": "Invalid reset link."},
+#                     status=status.HTTP_400_BAD_REQUEST,
+#                 )
+
+#             if not default_token_generator.check_token(user, token):
+#                 return Response(
+#                     {"error": "Invalid or expired token."},
+#                     status=status.HTTP_400_BAD_REQUEST,
+#                 )
+
+#             user.set_password(new_password)
+#             user.save()
+
+#             return Response(
+#                 {"message": "Password reset successful."},
+#                 status=status.HTTP_200_OK,
+#             )
+
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class ResetPasswordView(APIView):
     permission_classes = []
 
     def post(self, request):
+        print("========== REQUEST DATA ==========")
+        print(request.data)
+
         serializer = ResetPasswordSerializer(data=request.data)
 
-        if serializer.is_valid():
-            uid = serializer.validated_data["uid"]
-            token = serializer.validated_data["token"]
-            new_password = serializer.validated_data["new_password"]
+        if not serializer.is_valid():
+            print("========== SERIALIZER ERRORS ==========")
+            print(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            try:
-                user_id = force_str(urlsafe_base64_decode(uid))
-                user = User.objects.get(pk=user_id)
-            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-                return Response(
-                    {"error": "Invalid reset link."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        uid = serializer.validated_data["uid"]
+        token = serializer.validated_data["token"]
+        new_password = serializer.validated_data["new_password"]
 
-            if not default_token_generator.check_token(user, token):
-                return Response(
-                    {"error": "Invalid or expired token."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            user.set_password(new_password)
-            user.save()
-
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+        except Exception as e:
+            print("UID ERROR:", e)
             return Response(
-                {"message": "Password reset successful."},
-                status=status.HTTP_200_OK,
+                {"error": "Invalid reset link."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not default_token_generator.check_token(user, token):
+            print("TOKEN INVALID")
+            return Response(
+                {"error": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response(
+            {"message": "Password reset successful."},
+            status=status.HTTP_200_OK,
+        )

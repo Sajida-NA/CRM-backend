@@ -25,6 +25,7 @@ from apps.accounts.views import TestView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/accounts/", include("apps.accounts.urls")),
+    path("api/", include("apps.companies.urls")),
 
 
     path("api/token/",TokenObtainPairView.as_view(), name="token_obtain_pair",),

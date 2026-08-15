@@ -34,12 +34,22 @@ urlpatterns = [
     path("api/deals/",include("apps.deals.urls")),
 
 
+    # Activities
+    path("api/activities/", include("apps.activities.activity.urls")),
+
+    path("api/activities/", include("apps.activities.note.urls")),
+
+    path("api/activities/", include("apps.activities.call.urls")),
+
+    path("api/activities/", include("apps.activities.email.urls")),
+
+    path("api/activities/", include("apps.activities.meeting.urls")),
+
+
     path("api/token/",TokenObtainPairView.as_view(), name="token_obtain_pair",),
 
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh",),
 
     path("api/test/", TestView.as_view()),
 
-
-   
 ]

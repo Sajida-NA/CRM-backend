@@ -1,16 +1,26 @@
 
 from django.urls import path
 
-from .views import (LeadListCreateView,LeadDetailView,)
+from .views import (
+    LeadListCreateView,
+    LeadDetailView,
+)
 
 
 urlpatterns = [
 
-    # List + Create
-    path("leadslist/",LeadListCreateView.as_view(),name="leads-list-create"),
+    # Lead list and create
+    path(
+        "leadslist/",
+        LeadListCreateView.as_view(),
+        name="lead-list-create"
+    ),
 
-    # Get + Update + Delete
-    path("leadslist/<int:pk>/",LeadDetailView.as_view(),name="lead-detail"),
+    # Lead detail, update and delete
+    path(
+        "leadslist/<int:pk>/",
+        LeadDetailView.as_view(),
+        name="lead-detail"
+    ),
 
-    # path("leads/",LeadCreateView.as_view(),name="lead-create"),
 ]

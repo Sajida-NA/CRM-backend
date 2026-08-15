@@ -4,16 +4,18 @@ from django.db import models
 
 class Product(models.Model):
 
-    PRODUCT_CHOICES = [
-        ("CRM Software", "CRM Software"),
-        ("Marketing Tools", "Marketing Tools"),
-        ("Analytics Tools", "Analytics Tools"),
-    ]
-
     name = models.CharField(
-        max_length=50,
-        choices=PRODUCT_CHOICES,
+        max_length=100,
         unique=True
+    )
+
+    description = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
     )
 
     def __str__(self):
@@ -22,35 +24,31 @@ class Product(models.Model):
 
 class Lead(models.Model):
 
-    CONTACT_OWNER_CHOICES = [
-        ("Admin", "Admin"),
-        ("Sales", "Sales"),
-        ("Manager", "Manager"),
-    ]
-
-    LEAD_STATUS_CHOICES = [
+    STATUS_CHOICES = [
         ("New", "New"),
-        ("In Progress", "In Progress"),
-        ("Closed", "Closed"),
         ("Open", "Open"),
+        ("In Progress", "In Progress"),
+        ("Appointment Scheduled", "Appointment Scheduled"),
+        ("Presentation Scheduled", "Presentation Scheduled"),
+        ("Qualified to Buy", "Qualified to Buy"),
+        ("Contract Sent", "Contract Sent"),
+        ("Decision Maker Bought In", "Decision Maker Bought In"),
+        ("Closed Won", "Closed Won"),
+        ("Closed Lost", "Closed Lost"),
     ]
 
-    COMPANY_TYPE_CHOICES = [
-        ("Startup", "Startup"),
-        ("Enterprise", "Enterprise"),
-        ("Private", "Private"),
-        ("Public", "Public"),
-    ]
+    # Lead details
 
-    CITY_CHOICES = [
-        ("Dubai", "Dubai"),
-        ("Abu Dhabi", "Abu Dhabi"),
-    ]
+    email = models.EmailField(
+        unique=True
+    )
 
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="lead",
+    first_name = models.CharField(
+        max_length=100
+    )
+
+    last_name = models.CharField(
+        max_length=100
     )
 
     phone_number = models.CharField(
@@ -58,43 +56,52 @@ class Lead(models.Model):
     )
 
     job_title = models.CharField(
-        max_length=100
+        max_length=100,
+        blank=True,
+        null=True
     )
 
-    contact_owner = models.CharField(
-        max_length=20,
-        choices=CONTACT_OWNER_CHOICES
+    # Admin can assign an existing User as Contact Owner
+
+    contact_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_leads"
     )
 
     lead_status = models.CharField(
         max_length=30,
-        choices=LEAD_STATUS_CHOICES,
+        choices=STATUS_CHOICES,
         default="New"
     )
 
+    # One Lead can have multiple Products
+
     products = models.ManyToManyField(
         Product,
-        blank=True,
-        related_name="leads"
+        related_name="leads",
+        blank=True
     )
 
     company_type = models.CharField(
-        max_length=30,
-        choices=COMPANY_TYPE_CHOICES
+        max_length=150,
+        blank=True,
+        null=True
     )
 
     city = models.CharField(
-        max_length=30,
-        choices=CITY_CHOICES
+        max_length=100,
+        blank=True,
+        null=True
     )
+
+    # Automatically records when Lead is created
 
     created_at = models.DateTimeField(
         auto_now_add=True
     )
 
-    updated_at = models.DateTimeField(
-        auto_now=True
-    )
-
     def __str__(self):
-        return self.user.email
+        return f"{self.first_name} {self.last_name} ({self.email})"

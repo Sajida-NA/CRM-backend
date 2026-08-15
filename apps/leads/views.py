@@ -1,23 +1,23 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Lead
 from .serializers import (
-    LeadSerializer,
-    LeadCreateSerializer,
     LeadListSerializer,
+    LeadCreateSerializer,
 )
 
 
 class LeadListCreateView(APIView):
 
-    # GET → Display Lead List
+    permission_classes = [IsAuthenticated]
+
+    # GET - List all leads
     def get(self, request):
 
-        leads = Lead.objects.select_related(
-            "user"
-        ).all()
+        leads = Lead.objects.prefetch_related("products").all()
 
         serializer = LeadListSerializer(
             leads,
@@ -25,10 +25,11 @@ class LeadListCreateView(APIView):
         )
 
         return Response(
-            serializer.data
+            serializer.data,
+            status=status.HTTP_200_OK
         )
 
-    # POST → Create Lead
+    # POST - Create a new lead
     def post(self, request):
 
         serializer = LeadCreateSerializer(
@@ -39,10 +40,8 @@ class LeadListCreateView(APIView):
 
             lead = serializer.save()
 
-            # Return complete Lead after creation
-            response_serializer = LeadSerializer(
-                lead
-            )
+            # Return the lead using the list serializer
+            response_serializer = LeadListSerializer(lead)
 
             return Response(
                 response_serializer.data,
@@ -57,61 +56,61 @@ class LeadListCreateView(APIView):
 
 class LeadDetailView(APIView):
 
+    permission_classes = [IsAuthenticated]
+
     def get_object(self, pk):
 
         try:
-
-            return Lead.objects.select_related(
-                "user"
+            return Lead.objects.prefetch_related(
+                "products"
             ).get(pk=pk)
 
         except Lead.DoesNotExist:
-
             return None
 
-    # GET → Get one Lead with all details
+    # GET - Get one lead
     def get(self, request, pk):
 
         lead = self.get_object(pk)
 
         if lead is None:
-
             return Response(
-                {"detail": "Lead not found."},
+                {"detail": "Lead not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = LeadSerializer(
-            lead
-        )
+        serializer = LeadListSerializer(lead)
 
         return Response(
-            serializer.data
+            serializer.data,
+            status=status.HTTP_200_OK
         )
 
-    # PUT → Update complete Lead
+    # PUT - Update complete lead
     def put(self, request, pk):
 
         lead = self.get_object(pk)
 
         if lead is None:
-
             return Response(
-                {"detail": "Lead not found."},
+                {"detail": "Lead not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = LeadSerializer(
+        serializer = LeadCreateSerializer(
             lead,
             data=request.data
         )
 
         if serializer.is_valid():
 
-            serializer.save()
+            lead = serializer.save()
+
+            response_serializer = LeadListSerializer(lead)
 
             return Response(
-                serializer.data
+                response_serializer.data,
+                status=status.HTTP_200_OK
             )
 
         return Response(
@@ -119,19 +118,18 @@ class LeadDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # PATCH → Update partial Lead
+    # PATCH - Partially update lead
     def patch(self, request, pk):
 
         lead = self.get_object(pk)
 
         if lead is None:
-
             return Response(
-                {"detail": "Lead not found."},
+                {"detail": "Lead not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = LeadSerializer(
+        serializer = LeadCreateSerializer(
             lead,
             data=request.data,
             partial=True
@@ -139,10 +137,13 @@ class LeadDetailView(APIView):
 
         if serializer.is_valid():
 
-            serializer.save()
+            lead = serializer.save()
+
+            response_serializer = LeadListSerializer(lead)
 
             return Response(
-                serializer.data
+                response_serializer.data,
+                status=status.HTTP_200_OK
             )
 
         return Response(
@@ -150,30 +151,20 @@ class LeadDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # DELETE → Delete Lead
+    # DELETE - Delete lead
     def delete(self, request, pk):
 
         lead = self.get_object(pk)
 
         if lead is None:
-
             return Response(
-                {"detail": "Lead not found."},
+                {"detail": "Lead not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Keep the User account.
-        # Remove only Lead.
-        user = lead.user
-
         lead.delete()
 
-        # Convert Lead user back to normal user
-        user.is_lead = False
-        user.save(
-            update_fields=["is_lead"]
-        )
-
         return Response(
+            {"detail": "Lead deleted successfully"},
             status=status.HTTP_204_NO_CONTENT
         )

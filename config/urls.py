@@ -52,6 +52,4 @@ urlpatterns = [
 
     path("api/test/", TestView.as_view()),
 
-
-   
 ]

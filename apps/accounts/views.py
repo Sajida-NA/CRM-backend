@@ -30,6 +30,10 @@ from django.utils.http import urlsafe_base64_decode
 
 
 
+
+
+
+from rest_framework.permissions import IsAuthenticated
 # Create your views here.
 
 class RegisterView(APIView):

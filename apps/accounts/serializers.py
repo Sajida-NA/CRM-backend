@@ -14,6 +14,7 @@ class RegisterSerializer(serializers.ModelSerializer):
       choices=[
         ("Admin", "Admin"),
         ("User", "User"),
+        ("Contact Owner", "Contact Owner"),
       ],
       write_only=True,
     )
@@ -68,6 +69,7 @@ class AddUserSerializer(serializers.ModelSerializer):
         choices=[
             ("Admin", "Admin"),
             ("User", "User"),
+            ("Contact Owner", "Contact Owner"),
         ],
         write_only=True,
     )
@@ -184,6 +186,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
         choices=[
             ("Admin", "Admin"),
             ("User", "User"),
+            ("Contact Owner", "Contact Owner"),
         ],
         write_only=True,
     )
@@ -279,4 +282,3 @@ class ResetPasswordSerializer(serializers.Serializer):
                 {"confirm_password": "Passwords do not match."}
             )
         return attrs
-    

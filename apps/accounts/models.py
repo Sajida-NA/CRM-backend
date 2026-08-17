@@ -16,6 +16,8 @@ class User(AbstractUser):
 
     email = models.EmailField(unique=True)
 
+    
+
     phone_number = models.CharField( max_length=15,unique=True)
 
     company_name = models.CharField(max_length=255)

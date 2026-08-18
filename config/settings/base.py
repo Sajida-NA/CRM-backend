@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apps.companies',
-    'apps.activities',
+    
 
     # Third-party
     "rest_framework",
@@ -59,12 +59,13 @@ INSTALLED_APPS = [
     "apps.leads",
     "apps.deals",
 
-    # Activity apps
+# Activity apps
     "apps.activities.activity",
     "apps.activities.note",
     "apps.activities.call",
     "apps.activities.email",
     "apps.activities.meeting",
+ 
 ]
 
 MIDDLEWARE = [

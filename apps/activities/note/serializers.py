@@ -14,10 +14,16 @@ from apps.activities.activity.models import Activity
 # Serializer for Note model
 class NoteSerializer(serializers.ModelSerializer):
 
+    # ---------------------------------------------------------
+    # CRM MODULE
+    # ---------------------------------------------------------
     # Return the CRM module name
     # Example: company, lead, deal, ticket
     module = serializers.SerializerMethodField()
 
+    # ---------------------------------------------------------
+    # ACTIVITY INFORMATION
+    # ---------------------------------------------------------
     # Return the related Activity ID
     activity_id = serializers.IntegerField(
         source="activity.id",
@@ -29,6 +35,12 @@ class NoteSerializer(serializers.ModelSerializer):
         source="activity.object_id",
         read_only=True
     )
+
+    # ---------------------------------------------------------
+    # CREATED BY USER INFORMATION
+    # ---------------------------------------------------------
+    # Return details of the user who created the Note
+    created_by = serializers.SerializerMethodField()
 
     class Meta:
 
@@ -42,6 +54,7 @@ class NoteSerializer(serializers.ModelSerializer):
             "module",
             "object_id",
             "content",
+            "created_by",
             "created_at",
             "updated_at",
         ]
@@ -52,16 +65,43 @@ class NoteSerializer(serializers.ModelSerializer):
             "activity_id",
             "module",
             "object_id",
+            "created_by",
             "created_at",
             "updated_at",
         ]
 
+    # ---------------------------------------------------------
+    # GET CRM MODULE
+    # ---------------------------------------------------------
     # Get the CRM module name from Activity ContentType
     def get_module(self, obj):
 
         return obj.activity.content_type.model
 
-    # Validate Note data
+    # ---------------------------------------------------------
+    # GET CREATED BY USER
+    # ---------------------------------------------------------
+    # Get the user who created the Note
+    # The user is stored in Activity.created_by
+    def get_created_by(self, obj):
+
+        # Get the user from the related Activity
+        user = obj.activity.created_by
+
+        # If there is no user, return None
+        if not user:
+            return None
+
+        # Return useful user details
+        return {
+            "id": user.id,
+            "name": user.get_full_name() or user.email,
+            "email": user.email,
+        }
+
+    # ---------------------------------------------------------
+    # VALIDATE NOTE DATA
+    # ---------------------------------------------------------
     def validate(self, attrs):
 
         # ---------------------------------------------------------
@@ -138,7 +178,9 @@ class NoteSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    # Create Activity and Note together
+    # ---------------------------------------------------------
+    # CREATE ACTIVITY AND NOTE
+    # ---------------------------------------------------------
     def create(self, validated_data):
 
         # Get current request

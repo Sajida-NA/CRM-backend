@@ -1,14 +1,29 @@
 from rest_framework import serializers
+
 from .models import Email
 
 
 class EmailSerializer(serializers.ModelSerializer):
 
+    # -----------------------------------
+    # Sender
+    # -----------------------------------
+
+    sender_id = serializers.SerializerMethodField()
     sender_name = serializers.SerializerMethodField()
     sender_email = serializers.SerializerMethodField()
 
+    # -----------------------------------
+    # Recipient
+    # -----------------------------------
+
+    recipient_id = serializers.SerializerMethodField()
     recipient_name = serializers.SerializerMethodField()
     recipient_email = serializers.SerializerMethodField()
+
+    # -----------------------------------
+    # Date
+    # -----------------------------------
 
     date = serializers.SerializerMethodField()
 
@@ -18,91 +33,121 @@ class EmailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
 
+            # Sender
+            "sender_id",
+            "sender_name",
+            "sender_email",
+
             # Recipient
-            "to_recipients",
+            "recipient_id",
             "recipient_name",
             "recipient_email",
 
-            # Date
-            "date",
-
             # Email
+            "cc",
+            "bcc",
             "subject",
             "body",
 
-            # Sender
-            "sender_name",
-            "sender_email",
-
-            # CC / BCC
-            "cc",
-            "bcc",
-
             # Status
-            "status",
+            "date",
             "sent_at",
+            "status",
             "error_message",
         ]
-
-        extra_kwargs = {
-            "to_recipients": {
-                "write_only": True
-            }
-        }
 
         read_only_fields = [
             "id",
-            "recipient_name",
-            "recipient_email",
-            "date",
+
+            "sender_id",
             "sender_name",
             "sender_email",
-            "status",
+
+            "recipient_id",
+            "recipient_name",
+            "recipient_email",
+
+            "date",
             "sent_at",
+            "status",
             "error_message",
         ]
 
-    def get_sender_name(self, obj):
+    # ===================================
+    # Sender
+    # ===================================
+
+    def get_sender_id(self, obj):
+
         user = obj.activity.created_by
 
-        if user:
-            return user.get_full_name() or user.email
+        if not user:
+            return None
 
-        return None
+        return user.id
+
+    def get_sender_name(self, obj):
+
+        user = obj.activity.created_by
+
+        if not user:
+            return None
+
+        return user.get_full_name() or user.email
 
     def get_sender_email(self, obj):
+
         user = obj.activity.created_by
 
-        if user:
-            return user.email
+        if not user:
+            return None
 
-        return None
+        return user.email
 
-    def get_date(self, obj):
-        return obj.activity.created_at
+    # ===================================
+    # Recipient
+    # ===================================
+
+    def _get_first_recipient(self, obj):
+
+        recipients = obj.to_recipients
+
+        if not recipients:
+            return None
+
+        return recipients[0]
+
+    def get_recipient_id(self, obj):
+
+        recipient = self._get_first_recipient(obj)
+
+        if not recipient:
+            return None
+
+        return recipient.get("id")
 
     def get_recipient_name(self, obj):
-        recipients = obj.to_recipients
 
-        if not recipients:
+        recipient = self._get_first_recipient(obj)
+
+        if not recipient:
             return None
 
-        recipient = recipients[0]
-
-        if isinstance(recipient, dict):
-            return recipient.get("name")
-
-        return None
+        return recipient.get("name")
 
     def get_recipient_email(self, obj):
-        recipients = obj.to_recipients
 
-        if not recipients:
+        recipient = self._get_first_recipient(obj)
+
+        if not recipient:
             return None
 
-        recipient = recipients[0]
+        return recipient.get("email")
 
-        if isinstance(recipient, dict):
-            return recipient.get("email")
+    # ===================================
+    # Date
+    # ===================================
 
-        return recipient
+    def get_date(self, obj):
+
+        return obj.activity.created_at

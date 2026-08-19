@@ -1,10 +1,20 @@
+# Import Django admin tools
 from django.contrib import admin
 
+# Import Company model
 from .models import Company
 
 
+# ---------------------------------------------------------
+# COMPANY ADMIN CONFIGURATION
+# ---------------------------------------------------------
+
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
+
+    # ---------------------------------------------------------
+    # COLUMNS DISPLAYED IN DJANGO ADMIN
+    # ---------------------------------------------------------
 
     list_display = (
         "id",
@@ -23,6 +33,10 @@ class CompanyAdmin(admin.ModelAdmin):
         "created_at",
     )
 
+    # ---------------------------------------------------------
+    # FIELDS USED FOR ADMIN SEARCH
+    # ---------------------------------------------------------
+
     search_fields = (
         "company_name",
         "domain_name",
@@ -30,6 +44,10 @@ class CompanyAdmin(admin.ModelAdmin):
         "phone_number",
         "industry",
     )
+
+    # ---------------------------------------------------------
+    # FILTER OPTIONS IN DJANGO ADMIN
+    # ---------------------------------------------------------
 
     list_filter = (
         "industry",

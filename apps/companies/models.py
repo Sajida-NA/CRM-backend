@@ -1,6 +1,13 @@
+# Import Django model tools
 from django.db import models
+
+# Import custom User model
 from apps.accounts.models import User
 
+
+# ---------------------------------------------------------
+# LIFECYCLE STAGE CHOICES
+# ---------------------------------------------------------
 
 LIFECYCLE_STAGE_CHOICES = [
     ("LEAD", "Lead"),
@@ -10,15 +17,64 @@ LIFECYCLE_STAGE_CHOICES = [
 ]
 
 
+# ---------------------------------------------------------
+# COMPANY MODEL
+# ---------------------------------------------------------
+
 class Company(models.Model):
-    name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=15, unique=True)
-    website = models.URLField(blank=True, null=True)
 
-    industry = models.CharField(max_length=100)
-    employees = models.PositiveIntegerField(default=0)
+    # Domain Name / Company Website
+    domain_name = models.URLField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
 
+    # Company Name
+    company_name = models.CharField(
+        max_length=255,
+    )
+
+    # Company Owner
+    company_owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="companies",
+    )
+
+    # Industry
+    industry = models.CharField(
+        max_length=100,
+    )
+
+    # Company Type
+    type = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    # City
+    city = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    # Country / Region
+    country_region = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    # Number of Employees
+    no_of_employees = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+    )
+
+    # Annual Revenue
     annual_revenue = models.DecimalField(
         max_digits=15,
         decimal_places=2,
@@ -26,28 +82,42 @@ class Company(models.Model):
         null=True,
     )
 
+    # Phone Number
+    phone_number = models.CharField(
+        max_length=20,
+        unique=True,
+    )
+
+    # Company Email
+    email = models.EmailField(
+        unique=True,
+    )
+
+    # Existing CRM Lifecycle Stage
     lifecycle_stage = models.CharField(
         max_length=20,
         choices=LIFECYCLE_STAGE_CHOICES,
         default="LEAD",
     )
 
-    owner = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="companies",
+    # Created Date
+    created_at = models.DateTimeField(
+        auto_now_add=True,
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # Updated Date
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
+    # Return Company Name
     def __str__(self):
-     return self.name
+        return self.company_name
 
-class Meta:
-    db_table = "companies"
-    ordering = ["-created_at"]
+    # ---------------------------------------------------------
+    # MODEL METADATA
+    # ---------------------------------------------------------
 
-
-
-    
+    class Meta:
+        db_table = "companies"
+        ordering = ["-created_at"]

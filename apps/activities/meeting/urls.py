@@ -10,12 +10,12 @@ urlpatterns = [
     path(
         "",
         MeetingListCreateView.as_view(),
-        name="meeting-list-create",
+        name="meeting-list-create"
     ),
 
     path(
         "<int:pk>/",
         MeetingDetailView.as_view(),
-        name="meeting-detail",
+        name="meeting-detail"
     ),
 ]

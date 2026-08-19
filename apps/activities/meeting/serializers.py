@@ -1,4 +1,5 @@
 from rest_framework import serializers
+
 from .models import Meeting
 
 
@@ -11,8 +12,6 @@ class MeetingSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "owner",
-            "related_module",
-            "record_id",
             "start_date",
             "start_time",
             "end_time",
@@ -20,7 +19,12 @@ class MeetingSerializer(serializers.ModelSerializer):
             "location",
             "reminder",
             "note",
-          
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
             "created_at",
             "updated_at",
         ]

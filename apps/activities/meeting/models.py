@@ -1,20 +1,8 @@
 from django.db import models
-
-# Create your models here.
-from django.db import models
 from django.conf import settings
 
 
 class Meeting(models.Model):
-
-  
-
-    MODULE_CHOICES = [
-        ("LEAD", "Lead"),
-        ("DEAL", "Deal"),
-        ("COMPANY", "Company"),
-        ("TICKET", "Ticket"),
-    ]
 
     REMINDER_CHOICES = [
         ("5_MIN", "5 minutes before"),
@@ -29,15 +17,8 @@ class Meeting(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="meetings"
+        related_name="owned_meetings"
     )
-
-    related_module = models.CharField(
-        max_length=20,
-        choices=MODULE_CHOICES
-    )
-
-    object_id = models.PositiveIntegerField()
 
     start_date = models.DateField()
 
@@ -62,9 +43,13 @@ class Meeting(models.Model):
 
     note = models.TextField()
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
 
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
 
     def __str__(self):
         return self.title

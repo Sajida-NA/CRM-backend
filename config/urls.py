@@ -40,7 +40,7 @@ urlpatterns = [
 
     path("api/activities/email/", include("apps.activities.email.urls")),
 
-    # path("api/activities/meeting/", include("apps.activities.meeting.urls")),
+    path("api/activities/meeting/", include("apps.activities.meeting.urls")),
 
     path("api/activities/note/", include("apps.activities.note.urls")),
 
@@ -50,6 +50,6 @@ urlpatterns = [
 
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh",),
 
-    path("api/test/", TestView.as_view()),
+    # path("api/test/", TestView.as_view()),
 
 ]

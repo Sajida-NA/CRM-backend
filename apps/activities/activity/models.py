@@ -10,6 +10,7 @@ class Activity(models.Model):
         ("email", "Email"),
         ("note", "Note"),
         ("call", "Call"),
+        ('task', 'Task'),
         ("meeting", "Meeting"),
     ]
 

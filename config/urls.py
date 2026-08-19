@@ -44,6 +44,8 @@ urlpatterns = [
 
     path("api/activities/note/", include("apps.activities.note.urls")),
 
+    path("api/activities/task/", include("apps.activities.task.urls")),
+    
    
 
     path("api/token/",TokenObtainPairView.as_view(), name="token_obtain_pair",),

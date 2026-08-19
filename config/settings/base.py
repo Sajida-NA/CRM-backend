@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "apps.activities.call",
     "apps.activities.email",
     "apps.activities.meeting",
+    "apps.activities.task",
  
 ]
 

@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.companies',
+    
     
 
     # Third-party
@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     "apps.leads",
     "apps.deals",
+    'apps.companies',
 
 # Activity apps
     "apps.activities.activity",

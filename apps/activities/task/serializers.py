@@ -8,13 +8,27 @@ from apps.activities.activity.models import Activity
 
 class TaskSerializer(serializers.ModelSerializer):
 
-    # Input fields
-    module = serializers.CharField(write_only=True, required=False)
-    module_id = serializers.IntegerField(write_only=True, required=False)
+    # --------------------------------
+    # INPUT FIELDS
+    # --------------------------------
 
-    # Response fields
-    module_details = serializers.SerializerMethodField()
-    assigned_to_details = serializers.SerializerMethodField()
+    module = serializers.CharField(
+        write_only=True,
+        required=False
+    )
+
+    module_id = serializers.IntegerField(
+        write_only=True,
+        required=False
+    )
+
+    # --------------------------------
+    # RESPONSE FIELDS
+    # --------------------------------
+
+    lead_name = serializers.SerializerMethodField()
+
+    assigned_to_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -22,10 +36,12 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = [
             "id",
 
-            # Module
+            # CRM object - input only
             "module",
             "module_id",
-            "module_details",
+
+            # Display only
+            "lead_name",
 
             # Task details
             "task_name",
@@ -37,7 +53,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
             # Assigned user
             "assigned_to",
-            "assigned_to_details",
+            "assigned_to_name",
 
             # Timestamps
             "created_at",
@@ -46,51 +62,101 @@ class TaskSerializer(serializers.ModelSerializer):
 
         read_only_fields = [
             "id",
-            "module_details",
-            "assigned_to_details",
+            "lead_name",
+            "assigned_to_name",
             "created_at",
             "updated_at",
         ]
 
-    # --------------------------------
-    # Module details
-    # --------------------------------
-
-    def get_module_details(self, obj):
-
-        return {
-            "name": obj.content_type.model,
-            "id": obj.object_id
+        extra_kwargs = {
+            "assigned_to": {
+                "write_only": True
+            }
         }
 
-    # --------------------------------
-    # Assigned user details
-    # --------------------------------
+    # ========================================
+    # CRM OBJECT NAME
+    # ========================================
 
-    def get_assigned_to_details(self, obj):
+    def get_lead_name(self, obj):
+
+        related_object = obj.related_object
+
+        if not related_object:
+            return None
+
+        # Lead
+        if obj.content_type.model == "lead":
+
+            return (
+                f"{related_object.first_name} "
+                f"{related_object.last_name}"
+            ).strip()
+
+        # Deal
+        if obj.content_type.model == "deal":
+
+            lead = getattr(
+                related_object,
+                "associated_lead",
+                None
+            )
+
+            if lead:
+                return (
+                    f"{lead.first_name} "
+                    f"{lead.last_name}"
+                ).strip()
+
+        # Company
+        if obj.content_type.model == "company":
+
+            return getattr(
+                related_object,
+                "name",
+                None
+            )
+
+        # Ticket
+        if obj.content_type.model == "ticket":
+
+            return getattr(
+                related_object,
+                "name",
+                None
+            )
+
+        return None
+
+    # ========================================
+    # ASSIGNED USER NAME
+    # ========================================
+
+    def get_assigned_to_name(self, obj):
 
         if not obj.assigned_to:
             return None
 
-        return {
-            "id": obj.assigned_to.id,
-            "name": obj.assigned_to.get_full_name()
-        }
+        return (
+            obj.assigned_to.get_full_name()
+            or obj.assigned_to.email
+        )
 
-    # --------------------------------
-    # Validate module
-    # --------------------------------
+    # ========================================
+    # VALIDATE MODULE
+    # ========================================
 
     def validate(self, attrs):
 
         module = attrs.pop("module", None)
         module_id = attrs.pop("module_id", None)
 
-        # For UPDATE/PATCH, module is optional
+        # For PATCH/UPDATE
         if module is None and module_id is None:
             return attrs
 
         if module is None or module_id is None:
+
             raise serializers.ValidationError({
                 "module": "Both module and module_id are required."
             })
@@ -105,24 +171,30 @@ class TaskSerializer(serializers.ModelSerializer):
         }
 
         if module not in MODULE_MAP:
+
             raise serializers.ValidationError({
                 "module": (
                     "Invalid module. "
-                    "Allowed modules: lead, deal, company, ticket."
+                    "Allowed modules: "
+                    "lead, deal, company, ticket."
                 )
             })
 
         app_label, model_name = MODULE_MAP[module]
 
         try:
+
             content_type = ContentType.objects.get(
                 app_label=app_label,
                 model=model_name
             )
 
         except ContentType.DoesNotExist:
+
             raise serializers.ValidationError({
-                "module": f"{module} module does not exist."
+                "module": (
+                    f"{module} module does not exist."
+                )
             })
 
         model_class = content_type.model_class()
@@ -133,7 +205,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
             raise serializers.ValidationError({
                 "module_id": (
-                    f"{module} with id {module_id} does not exist."
+                    f"{module} with id "
+                    f"{module_id} does not exist."
                 )
             })
 
@@ -142,9 +215,9 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    # --------------------------------
-    # Create Task + Activity
-    # --------------------------------
+    # ========================================
+    # CREATE TASK + ACTIVITY
+    # ========================================
 
     @transaction.atomic
     def create(self, validated_data):
@@ -168,31 +241,48 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return task
 
-    # --------------------------------
-    # Update Task
-    # --------------------------------
+    # ========================================
+    # UPDATE TASK
+    # ========================================
 
     @transaction.atomic
     def update(self, instance, validated_data):
 
-        # Update module if supplied
         if "content_type" in validated_data:
-            instance.content_type = validated_data.pop("content_type")
+
+            instance.content_type = validated_data.pop(
+                "content_type"
+            )
 
         if "object_id" in validated_data:
-            instance.object_id = validated_data.pop("object_id")
 
-        # Update remaining fields
+            instance.object_id = validated_data.pop(
+                "object_id"
+            )
+
         for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+
+            setattr(
+                instance,
+                attr,
+                value
+            )
 
         instance.save()
 
-        # Keep Activity connected to same CRM object
+        # Keep Activity connected
+        # to the same CRM object
+
         if hasattr(instance, "activity"):
 
-            instance.activity.content_type = instance.content_type
-            instance.activity.object_id = instance.object_id
+            instance.activity.content_type = (
+                instance.content_type
+            )
+
+            instance.activity.object_id = (
+                instance.object_id
+            )
+
             instance.activity.save()
 
         return instance

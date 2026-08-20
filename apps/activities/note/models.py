@@ -19,7 +19,7 @@ class Note(models.Model):
     )
 
     # Store the note text entered from the Create Note popup
-    content = models.TextField()
+    note = models.TextField()
 
     # Automatically store when the note was created
     created_at = models.DateTimeField(
@@ -33,4 +33,4 @@ class Note(models.Model):
 
     # Display a readable representation of the Note
     def __str__(self):
-        return self.content[:50]
+        return self.note[:50]

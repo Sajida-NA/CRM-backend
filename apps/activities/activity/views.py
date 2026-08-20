@@ -13,10 +13,6 @@ class ActivityListCreateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # ==========================================
-    # GET ALL ACTIVITIES
-    # ==========================================
-
     def get(self, request):
 
         activities = Activity.objects.select_related(
@@ -34,10 +30,6 @@ class ActivityListCreateView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # ==========================================
-    # CREATE ACTIVITY
-    # ==========================================
-
     def post(self, request):
 
         serializer = ActivitySerializer(
@@ -52,7 +44,12 @@ class ActivityListCreateView(APIView):
             activity = serializer.save()
 
             return Response(
-                ActivitySerializer(activity).data,
+                ActivitySerializer(
+                    activity,
+                    context={
+                        "request": request
+                    }
+                ).data,
                 status=status.HTTP_201_CREATED
             )
 
@@ -66,21 +63,15 @@ class ActivityDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # ==========================================
-    # GET ACTIVITY
-    # ==========================================
-
     def get_object(self, pk):
 
         try:
-
             return Activity.objects.select_related(
                 "created_by",
                 "content_type"
             ).get(pk=pk)
 
         except Activity.DoesNotExist:
-
             return None
 
     def get(self, request, pk):
@@ -88,7 +79,6 @@ class ActivityDetailView(APIView):
         activity = self.get_object(pk)
 
         if activity is None:
-
             return Response(
                 {
                     "detail": "Activity not found."
@@ -96,25 +86,18 @@ class ActivityDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = ActivitySerializer(
-            activity
-        )
+        serializer = ActivitySerializer(activity)
 
         return Response(
             serializer.data,
             status=status.HTTP_200_OK
         )
 
-    # ==========================================
-    # DELETE
-    # ==========================================
-
     def delete(self, request, pk):
 
         activity = self.get_object(pk)
 
         if activity is None:
-
             return Response(
                 {
                     "detail": "Activity not found."
@@ -125,8 +108,74 @@ class ActivityDetailView(APIView):
         activity.delete()
 
         return Response(
-            {
-                "message": "Activity deleted successfully."
-            },
             status=status.HTTP_204_NO_CONTENT
+        )
+
+
+# ==========================================================
+# ACTIVITY TIMELINE
+# ==========================================================
+
+class ActivityTimelineView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, module, object_id):
+
+        allowed_modules = [
+            "lead",
+            "deal",
+            "company",
+            "ticket",
+        ]
+
+        module = module.lower()
+
+        if module not in allowed_modules:
+            return Response(
+                {
+                    "detail": (
+                        f"Choose one of: "
+                        f"{', '.join(allowed_modules)}"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+
+            content_type = ContentType.objects.get(
+                model=module
+            )
+
+        except ContentType.DoesNotExist:
+
+            return Response(
+                {
+                    "detail": (
+                        f"No model found for module "
+                        f"'{module}'."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        activities = Activity.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).select_related(
+            "created_by",
+            "content_type"
+        ).order_by(
+            "-created_at"
+        )
+
+        serializer = ActivitySerializer(
+            activities,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
         )

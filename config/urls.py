@@ -36,7 +36,7 @@ urlpatterns = [
 # Activities
     path("api/activities/activity/", include("apps.activities.activity.urls")),
 
-    # path("api/activities/call/", include("apps.activities.call.urls")),
+    path("api/activities/call/", include("apps.activities.call.urls")),
 
     path("api/activities/email/", include("apps.activities.email.urls")),
 

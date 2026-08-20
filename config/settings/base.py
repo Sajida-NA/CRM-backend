@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'apps.companies',
     
+    
 
     # Third-party
     "rest_framework",
@@ -61,6 +62,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     "apps.leads",
     "apps.deals",
+    "apps.tickets",
 
 # Activity apps
     "apps.activities.activity",

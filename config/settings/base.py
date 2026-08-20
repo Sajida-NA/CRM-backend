@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.companies',
+    
     
     
 
@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "apps.activities.call",
     "apps.activities.email",
     "apps.activities.meeting",
+    "apps.activities.task",
  
 ]
 

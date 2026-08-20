@@ -4,6 +4,17 @@ from django.conf import settings
 
 class Meeting(models.Model):
 
+    ACTIVITY_TYPE_CHOICES = [
+        ("MEETING", "Meeting"),
+    ]
+
+    MODULE_CHOICES = [
+        ("LEAD", "Lead"),
+        ("DEAL", "Deal"),
+        ("COMPANY", "Company"),
+        ("TICKET", "Ticket"),
+    ]
+
     REMINDER_CHOICES = [
         ("5_MIN", "5 minutes before"),
         ("15_MIN", "15 minutes before"),
@@ -12,7 +23,22 @@ class Meeting(models.Model):
         ("1_DAY", "1 day before"),
     ]
 
-    title = models.CharField(max_length=255)
+    activity_type = models.CharField(
+        max_length=20,
+        choices=ACTIVITY_TYPE_CHOICES,
+        default="MEETING",
+    )
+
+    module = models.CharField(
+        max_length=20,
+        choices=MODULE_CHOICES,
+         null=True,
+    blank=True,
+    )
+
+    title = models.CharField(
+        max_length=255
+    )
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -32,7 +58,9 @@ class Meeting(models.Model):
         blank=True
     )
 
-    location = models.CharField(max_length=255)
+    location = models.CharField(
+        max_length=255
+    )
 
     reminder = models.CharField(
         max_length=20,
@@ -43,6 +71,8 @@ class Meeting(models.Model):
 
     note = models.TextField()
 
+    blank=True,
+    null=True
     created_at = models.DateTimeField(
         auto_now_add=True
     )

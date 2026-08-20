@@ -33,6 +33,8 @@ urlpatterns = [
     
     path("api/deals/",include("apps.deals.urls")),
 
+    path("api/tickets/", include("apps.tickets.urls")),
+    
 # Activities
     path("api/activities/activity/", include("apps.activities.activity.urls")),
 

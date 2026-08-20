@@ -6,18 +6,6 @@ from apps.accounts.models import User
 
 
 # ---------------------------------------------------------
-# LIFECYCLE STAGE CHOICES
-# ---------------------------------------------------------
-
-LIFECYCLE_STAGE_CHOICES = [
-    ("LEAD", "Lead"),
-    ("PROSPECT", "Prospect"),
-    ("CUSTOMER", "Customer"),
-    ("LOST", "Lost"),
-]
-
-
-# ---------------------------------------------------------
 # COMPANY MODEL
 # ---------------------------------------------------------
 
@@ -91,13 +79,6 @@ class Company(models.Model):
     # Company Email
     email = models.EmailField(
         unique=True,
-    )
-
-    # Existing CRM Lifecycle Stage
-    lifecycle_stage = models.CharField(
-        max_length=20,
-        choices=LIFECYCLE_STAGE_CHOICES,
-        default="LEAD",
     )
 
     # Created Date

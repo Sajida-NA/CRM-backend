@@ -12,30 +12,18 @@ from .models import Company
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
 
-    # ---------------------------------------------------------
-    # COLUMNS DISPLAYED IN DJANGO ADMIN
-    # ---------------------------------------------------------
-
+    # Company table columns
     list_display = (
-        "id",
         "company_name",
-        "domain_name",
-        "industry",
-        "type",
         "company_owner",
+        "phone_number",
+        "industry",
         "city",
         "country_region",
-        "no_of_employees",
-        "annual_revenue",
-        "phone_number",
-        "email",
         "created_at",
     )
 
-    # ---------------------------------------------------------
-    # FIELDS USED FOR ADMIN SEARCH
-    # ---------------------------------------------------------
-
+    # Search fields
     search_fields = (
         "company_name",
         "domain_name",
@@ -44,12 +32,10 @@ class CompanyAdmin(admin.ModelAdmin):
         "industry",
     )
 
-    # ---------------------------------------------------------
-    # FILTER OPTIONS IN DJANGO ADMIN
-    # ---------------------------------------------------------
-
+    # Filters in Figma order
     list_filter = (
         "industry",
-        "type",
+        "city",
         "country_region",
+        "created_at",
     )

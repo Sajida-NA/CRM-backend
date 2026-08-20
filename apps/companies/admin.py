@@ -29,7 +29,6 @@ class CompanyAdmin(admin.ModelAdmin):
         "annual_revenue",
         "phone_number",
         "email",
-        "lifecycle_stage",
         "created_at",
     )
 
@@ -53,5 +52,4 @@ class CompanyAdmin(admin.ModelAdmin):
         "industry",
         "type",
         "country_region",
-        "lifecycle_stage",
     )

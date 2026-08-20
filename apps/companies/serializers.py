@@ -12,7 +12,6 @@ from .models import Company
 class CompanySerializer(serializers.ModelSerializer):
 
     class Meta:
-
         # Use Company model
         model = Company
 
@@ -38,8 +37,13 @@ class CompanySerializer(serializers.ModelSerializer):
 
 class CompanyListSerializer(serializers.ModelSerializer):
 
-    class Meta:
+    # Return the owner's email
+    company_owner_name = serializers.CharField(
+        source="company_owner.email",
+        read_only=True
+    )
 
+    class Meta:
         # Use Company model
         model = Company
 
@@ -49,6 +53,7 @@ class CompanyListSerializer(serializers.ModelSerializer):
             "domain_name",
             "company_name",
             "company_owner",
+            "company_owner_name",
             "industry",
             "type",
             "city",
@@ -57,7 +62,6 @@ class CompanyListSerializer(serializers.ModelSerializer):
             "annual_revenue",
             "phone_number",
             "email",
-            "lifecycle_stage",
             "created_at",
             "updated_at",
         ]
@@ -70,7 +74,6 @@ class CompanyListSerializer(serializers.ModelSerializer):
 class UpdateCompanySerializer(serializers.ModelSerializer):
 
     class Meta:
-
         # Use Company model
         model = Company
 
@@ -87,5 +90,4 @@ class UpdateCompanySerializer(serializers.ModelSerializer):
             "annual_revenue",
             "phone_number",
             "email",
-            "lifecycle_stage",
         ]

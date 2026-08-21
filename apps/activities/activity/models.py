@@ -1,6 +1,3 @@
-
-
-# Create your models here.
 from django.conf import settings
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -13,14 +10,17 @@ class Activity(models.Model):
         ("email", "Email"),
         ("note", "Note"),
         ("call", "Call"),
+        ('task', 'Task'),
         ("meeting", "Meeting"),
     ]
 
+    # Type of activity
     activity_type = models.CharField(
         max_length=20,
         choices=ACTIVITY_TYPE_CHOICES
     )
 
+    # User/Admin who created the activity
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -28,14 +28,17 @@ class Activity(models.Model):
         related_name="activities_created"
     )
 
-    # Which CRM object does this activity belong to?
+    # CRM module this activity belongs to
+    # lead / deal / company / ticket
     content_type = models.ForeignKey(
         ContentType,
         on_delete=models.CASCADE
     )
 
+    # ID of the Lead/Deal/Company/Ticket
     object_id = models.PositiveIntegerField()
 
+    # Gives access to the actual related object
     related_object = GenericForeignKey(
         "content_type",
         "object_id"

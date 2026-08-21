@@ -1,24 +1,44 @@
+from django.contrib.contenttypes.models import ContentType
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from django.contrib.contenttypes.models import ContentType
-
 from .models import Activity
 from .serializers import ActivitySerializer
 
 
-class ActivityListCreateView(APIView):
+class ActivityListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request, module, module_id):
 
-        activities = Activity.objects.select_related(
+        try:
+
+            content_type = ContentType.objects.get(
+                model=module.lower()
+            )
+
+        except ContentType.DoesNotExist:
+
+            return Response(
+                {
+                    "error": f"Invalid module: {module}"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        activities = Activity.objects.filter(
+            content_type=content_type,
+            object_id=module_id
+        ).select_related(
             "created_by",
             "content_type"
-        ).order_by("-created_at")
+        ).order_by(
+            "-created_at"
+        )
 
         serializer = ActivitySerializer(
             activities,
@@ -30,113 +50,36 @@ class ActivityListCreateView(APIView):
             status=status.HTTP_200_OK
         )
 
-    def post(self, request):
 
-        serializer = ActivitySerializer(
-            data=request.data,
-            context={
-                "request": request
-            }
-        )
-
-        if serializer.is_valid():
-
-            activity = serializer.save()
-
-            return Response(
-                ActivitySerializer(
-                    activity,
-                    context={
-                        "request": request
-                    }
-                ).data,
-                status=status.HTTP_201_CREATED
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-class ActivityDetailView(APIView):
+class ActivityTypeListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk):
+    def get(
+        self,
+        request,
+        module,
+        module_id,
+        activity_type
+    ):
 
-        try:
-            return Activity.objects.select_related(
-                "created_by",
-                "content_type"
-            ).get(pk=pk)
-
-        except Activity.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-
-        activity = self.get_object(pk)
-
-        if activity is None:
-            return Response(
-                {
-                    "detail": "Activity not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        serializer = ActivitySerializer(activity)
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
-
-    def delete(self, request, pk):
-
-        activity = self.get_object(pk)
-
-        if activity is None:
-            return Response(
-                {
-                    "detail": "Activity not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        activity.delete()
-
-        return Response(
-            status=status.HTTP_204_NO_CONTENT
-        )
-
-
-# ==========================================================
-# ACTIVITY TIMELINE
-# ==========================================================
-
-class ActivityTimelineView(APIView):
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, module, object_id):
-
-        allowed_modules = [
-            "lead",
-            "deal",
-            "company",
-            "ticket",
+        valid_types = [
+            "note",
+            "call",
+            "task",
+            "email",
+            "meeting",
         ]
 
-        module = module.lower()
+        activity_type = activity_type.lower()
 
-        if module not in allowed_modules:
+        if activity_type not in valid_types:
+
             return Response(
                 {
-                    "detail": (
-                        f"Choose one of: "
-                        f"{', '.join(allowed_modules)}"
+                    "error": (
+                        f"Invalid activity type: "
+                        f"{activity_type}"
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST
@@ -145,24 +88,22 @@ class ActivityTimelineView(APIView):
         try:
 
             content_type = ContentType.objects.get(
-                model=module
+                model=module.lower()
             )
 
         except ContentType.DoesNotExist:
 
             return Response(
                 {
-                    "detail": (
-                        f"No model found for module "
-                        f"'{module}'."
-                    )
+                    "error": f"Invalid module: {module}"
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
 
         activities = Activity.objects.filter(
             content_type=content_type,
-            object_id=object_id
+            object_id=module_id,
+            activity_type=activity_type
         ).select_related(
             "created_by",
             "content_type"

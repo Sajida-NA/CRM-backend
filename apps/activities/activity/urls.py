@@ -1,31 +1,32 @@
 from django.urls import path
 
 from .views import (
-    ActivityListCreateView,
-    ActivityDetailView,
-    ActivityTimelineView,
+    ActivityListView,
+    ActivityTypeListView,
 )
+
 
 urlpatterns = [
 
-    # Timeline
+    # Get ALL activities
+    #
+    # /api/activities/lead/5/
+    #
     path(
-        "timeline/<str:module>/<int:object_id>/",
-        ActivityTimelineView.as_view(),
-        name="activity-timeline",
+        "<str:module>/<int:module_id>/",
+        ActivityListView.as_view(),
+        name="activity-list"
     ),
 
-    # Get one / Delete one
+    # Get specific activity type
+    #
+    # /api/activities/lead/5/note/
+    # /api/activities/lead/5/call/
+    # /api/activities/lead/5/task/
+    #
     path(
-        "<int:pk>/",
-        ActivityDetailView.as_view(),
-        name="activity-detail",
-    ),
-
-    # Get all / Create
-    path(
-        "",
-        ActivityListCreateView.as_view(),
-        name="activity-list-create",
+        "<str:module>/<int:module_id>/<str:activity_type>/",
+        ActivityTypeListView.as_view(),
+        name="activity-type-list"
     ),
 ]

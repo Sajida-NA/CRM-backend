@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     'apps.accounts',
+    'apps.companies',
     "apps.leads",
     "apps.deals",
     "apps.tickets",

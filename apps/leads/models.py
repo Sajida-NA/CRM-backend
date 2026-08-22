@@ -99,7 +99,7 @@ class Lead(models.Model):
 
     # Automatically records when Lead is created
 
-    created_at = models.DateTimeField(
+    created_date = models.DateTimeField(
         auto_now_add=True
     )
 

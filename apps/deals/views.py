@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Deal
 from .serializers import (
@@ -10,6 +11,9 @@ from .serializers import (
 
 
 class DealListCreateView(APIView):
+
+    # Only authenticated users can access Deals
+    permission_classes = [IsAuthenticated]
 
     # GET - List all deals
     def get(self, request):
@@ -29,7 +33,7 @@ class DealListCreateView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # POST - Create a deal
+    # POST - Create a new deal
     def post(self, request):
 
         serializer = DealCreateSerializer(
@@ -57,10 +61,14 @@ class DealListCreateView(APIView):
 
 class DealDetailView(APIView):
 
-    # GET - One deal
+    # Only authenticated users can access Deal details
+    permission_classes = [IsAuthenticated]
+
+    # GET - Get one deal
     def get(self, request, pk):
 
         try:
+
             deal = Deal.objects.select_related(
                 "associated_lead",
                 "deal_owner"
@@ -75,7 +83,9 @@ class DealDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = DealListSerializer(deal)
+        serializer = DealListSerializer(
+            deal
+        )
 
         return Response(
             serializer.data,
@@ -86,6 +96,7 @@ class DealDetailView(APIView):
     def put(self, request, pk):
 
         try:
+
             deal = Deal.objects.select_related(
                 "associated_lead",
                 "deal_owner"
@@ -127,6 +138,7 @@ class DealDetailView(APIView):
     def patch(self, request, pk):
 
         try:
+
             deal = Deal.objects.select_related(
                 "associated_lead",
                 "deal_owner"
@@ -169,6 +181,7 @@ class DealDetailView(APIView):
     def delete(self, request, pk):
 
         try:
+
             deal = Deal.objects.get(pk=pk)
 
         except Deal.DoesNotExist:

@@ -5,7 +5,18 @@ from .views import (
     CallDetailView,
 )
 
+
 urlpatterns = [
-    path("", CallListCreateView.as_view()),
-    path("<int:pk>/", CallDetailView.as_view()),
+
+    path(
+        "",
+        CallListCreateView.as_view(),
+        name="call-list-create"
+    ),
+
+    path(
+        "<int:pk>/",
+        CallDetailView.as_view(),
+        name="call-detail"
+    ),
 ]

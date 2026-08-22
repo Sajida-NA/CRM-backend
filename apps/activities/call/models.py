@@ -70,4 +70,4 @@ class Call(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Call - {self.call_date} {self.call_time}"
+        return f"Call - {self.date} {self.time}"

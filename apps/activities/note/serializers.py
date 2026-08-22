@@ -1,6 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 from django.db import transaction
+
 from rest_framework import serializers
 
 from .models import Note
@@ -12,9 +13,9 @@ User = get_user_model()
 
 class NoteSerializer(serializers.ModelSerializer):
 
-    # ==========================================
-    # INPUT FIELDS
-    # ==========================================
+    # =================================================
+    # INPUT ONLY
+    # =================================================
 
     sender_id = serializers.IntegerField(
         write_only=True,
@@ -31,15 +32,17 @@ class NoteSerializer(serializers.ModelSerializer):
         required=True
     )
 
-    # ==========================================
-    # RESPONSE
-    # ==========================================
+    # =================================================
+    # OUTPUT ONLY
+    # =================================================
 
-    sender_name = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField(
+        read_only=True
+    )
 
-    # ==========================================
+    # =================================================
     # META
-    # ==========================================
+    # =================================================
 
     class Meta:
 
@@ -48,13 +51,13 @@ class NoteSerializer(serializers.ModelSerializer):
         fields = [
             "id",
 
-            # Input only
+            # Created user
+            "created_by",
+
+            # Input
             "sender_id",
             "module",
             "module_id",
-
-            # Response
-            "sender_name",
 
             # Note
             "note",
@@ -66,53 +69,26 @@ class NoteSerializer(serializers.ModelSerializer):
 
         read_only_fields = [
             "id",
-            "sender_name",
+            "created_by",
             "created_at",
             "updated_at",
         ]
 
-    # ==========================================
-    # SENDER NAME
-    # ==========================================
-
-    def get_sender_name(self, obj):
-
-        user = obj.activity.created_by
-
-        if not user:
-            return None
-
-        return (
-            user.get_full_name()
-            or user.email
-        )
-
-    # ==========================================
-    # VALIDATE
-    # ==========================================
+    # =================================================
+    # VALIDATION
+    # =================================================
 
     def validate(self, attrs):
 
-        sender_id = attrs.pop(
-            "sender_id",
-            None
-        )
+        sender_id = attrs.get("sender_id")
+        module = attrs.get("module")
+        module_id = attrs.get("module_id")
 
-        module = attrs.pop(
-            "module",
-            None
-        )
+        # =================================================
+        # SENDER VALIDATION
+        # =================================================
 
-        module_id = attrs.pop(
-            "module_id",
-            None
-        )
-
-        # ======================================
-        # VALIDATE SENDER
-        # ======================================
-
-        if not sender_id:
+        if sender_id is None:
 
             raise serializers.ValidationError({
                 "sender_id": "This field is required."
@@ -133,11 +109,9 @@ class NoteSerializer(serializers.ModelSerializer):
                 )
             })
 
-        attrs["sender"] = sender
-
-        # ======================================
-        # VALIDATE MODULE
-        # ======================================
+        # =================================================
+        # MODULE VALIDATION
+        # =================================================
 
         if not module:
 
@@ -145,7 +119,11 @@ class NoteSerializer(serializers.ModelSerializer):
                 "module": "This field is required."
             })
 
-        module = module.lower()
+        module = module.lower().strip()
+
+        # =================================================
+        # MODULE MAP
+        # =================================================
 
         MODULE_MAP = {
 
@@ -182,9 +160,9 @@ class NoteSerializer(serializers.ModelSerializer):
 
         app_label, model_name = MODULE_MAP[module]
 
-        # ======================================
-        # GET CONTENT TYPE
-        # ======================================
+        # =================================================
+        # CONTENT TYPE
+        # =================================================
 
         try:
 
@@ -201,17 +179,30 @@ class NoteSerializer(serializers.ModelSerializer):
                 )
             })
 
-        # ======================================
-        # VALIDATE MODULE ID
-        # ======================================
+        # =================================================
+        # MODULE ID
+        # =================================================
 
-        if not module_id:
+        if module_id is None:
 
             raise serializers.ValidationError({
                 "module_id": "This field is required."
             })
 
         model_class = content_type.model_class()
+
+        if model_class is None:
+
+            raise serializers.ValidationError({
+                "module": (
+                    f"Could not find model "
+                    f"for '{module}'."
+                )
+            })
+
+        # =================================================
+        # CHECK MODULE OBJECT
+        # =================================================
 
         if not model_class.objects.filter(
             id=module_id
@@ -224,24 +215,30 @@ class NoteSerializer(serializers.ModelSerializer):
                 )
             })
 
-        # ======================================
-        # STORE GENERIC RELATIONSHIP
-        # ======================================
+        # =================================================
+        # STORE VALUES
+        # =================================================
 
+        attrs["sender"] = sender
+        attrs["module"] = module
         attrs["content_type"] = content_type
         attrs["object_id"] = module_id
 
         return attrs
 
-    # ==========================================
-    # CREATE ACTIVITY + NOTE
-    # ==========================================
+    # =================================================
+    # CREATE
+    # =================================================
 
     @transaction.atomic
     def create(self, validated_data):
 
         sender = validated_data.pop(
             "sender"
+        )
+
+        module = validated_data.pop(
+            "module"
         )
 
         content_type = validated_data.pop(
@@ -252,7 +249,21 @@ class NoteSerializer(serializers.ModelSerializer):
             "object_id"
         )
 
-        # Automatically create Activity
+        # Remove input-only fields
+        validated_data.pop(
+            "sender_id",
+            None
+        )
+
+        validated_data.pop(
+            "module_id",
+            None
+        )
+
+        # =================================================
+        # CREATE ACTIVITY
+        # =================================================
+
         activity = Activity.objects.create(
             activity_type="note",
             created_by=sender,
@@ -260,7 +271,10 @@ class NoteSerializer(serializers.ModelSerializer):
             object_id=object_id
         )
 
-        # Create Note
+        # =================================================
+        # CREATE NOTE
+        # =================================================
+
         note = Note.objects.create(
             activity=activity,
             **validated_data
@@ -268,67 +282,316 @@ class NoteSerializer(serializers.ModelSerializer):
 
         return note
 
-    # ==========================================
-    # REPRESENTATION
-    # ==========================================
+    # =================================================
+    # UPDATE
+    # =================================================
 
-    def to_representation(self, instance):
+    def update(
+        self,
+        instance,
+        validated_data
+    ):
 
-        data = super().to_representation(instance)
+        # These fields cannot be changed
+        validated_data.pop(
+            "sender_id",
+            None
+        )
 
-        # Get related CRM object
-        related_object = instance.activity.related_object
+        validated_data.pop(
+            "module",
+            None
+        )
 
-        if not related_object:
-            return data
+        validated_data.pop(
+            "module_id",
+            None
+        )
 
-        module = instance.activity.content_type.model
+        validated_data.pop(
+            "sender",
+            None
+        )
 
-        # ======================================
+        validated_data.pop(
+            "content_type",
+            None
+        )
+
+        validated_data.pop(
+            "object_id",
+            None
+        )
+
+        # =================================================
+        # UPDATE NOTE
+        # =================================================
+
+        if "note" in validated_data:
+
+            instance.note = validated_data["note"]
+
+            instance.save()
+
+        return instance
+
+    # =================================================
+    # CREATED BY
+    # =================================================
+
+    def get_created_by(
+        self,
+        obj
+    ):
+
+        if not obj.activity:
+
+            return None
+
+        user = obj.activity.created_by
+
+        if not user:
+
+            return None
+
+        full_name = user.get_full_name()
+
+        if full_name:
+
+            name = full_name
+
+        else:
+
+            name = user.email
+
+        return {
+            "id": user.id,
+            "name": name
+        }
+
+    # =================================================
+    # GET OBJECT NAME
+    # =================================================
+
+    def get_object_name(
+        self,
+        related_object
+    ):
+
+        # =================================================
         # LEAD
-        # ======================================
+        # =================================================
 
-        if module == "lead":
+        if hasattr(
+            related_object,
+            "first_name"
+        ):
 
-            data["lead_name"] = (
-                f"{related_object.first_name} "
-                f"{related_object.last_name}"
+            first_name = (
+                getattr(
+                    related_object,
+                    "first_name",
+                    ""
+                ) or ""
+            )
+
+            last_name = (
+                getattr(
+                    related_object,
+                    "last_name",
+                    ""
+                ) or ""
+            )
+
+            full_name = (
+                f"{first_name} {last_name}"
             ).strip()
 
-        # ======================================
+            if full_name:
+
+                return full_name
+
+        # =================================================
         # DEAL
-        # ======================================
+        # =================================================
 
-        elif module == "deal":
+        if hasattr(
+            related_object,
+            "deal_name"
+        ):
 
-            data["deal_name"] = getattr(
-                related_object,
-                "deal_name",
-                None
-            )
+            return related_object.deal_name
 
-        # ======================================
+        # =================================================
         # COMPANY
-        # ======================================
+        # =================================================
 
-        elif module == "company":
+        if hasattr(
+            related_object,
+            "company_name"
+        ):
 
-            data["company_name"] = getattr(
-                related_object,
-                "name",
-                None
-            )
+            return related_object.company_name
 
-        # ======================================
+        # =================================================
+        # COMPANY FALLBACK
+        # =================================================
+
+        if hasattr(
+            related_object,
+            "name"
+        ):
+
+            return related_object.name
+
+        # =================================================
         # TICKET
-        # ======================================
+        # =================================================
 
-        elif module == "ticket":
+        if hasattr(
+            related_object,
+            "title"
+        ):
 
-            data["ticket_name"] = getattr(
-                related_object,
-                "name",
-                None
-            )
+            return related_object.title
 
-        return data
+        # =================================================
+        # FALLBACK
+        # =================================================
+
+        return str(
+            related_object
+        )
+
+    # =================================================
+    # FINAL RESPONSE
+    # =================================================
+
+    def to_representation(
+        self,
+        instance
+    ):
+
+        # =================================================
+        # NORMAL DATA
+        # =================================================
+
+        data = super().to_representation(
+            instance
+        )
+
+        # =================================================
+        # GET ACTIVITY
+        # =================================================
+
+        activity = instance.activity
+
+        if not activity:
+
+            return data
+
+        # =================================================
+        # GET CONTENT TYPE
+        # =================================================
+
+        content_type = activity.content_type
+
+        if not content_type:
+
+            return data
+
+        # =================================================
+        # GET MODULE
+        # =================================================
+
+        module = content_type.model.lower()
+
+        # =================================================
+        # GET ACTUAL CRM OBJECT
+        # =================================================
+
+        model_class = content_type.model_class()
+
+        if model_class:
+
+            try:
+
+                related_object = model_class.objects.get(
+                    pk=activity.object_id
+                )
+
+            except model_class.DoesNotExist:
+
+                related_object = None
+
+        else:
+
+            related_object = None
+
+        # =================================================
+        # MODULE
+        # =================================================
+
+        data["module"] = module
+
+        # =================================================
+        # MODULE DETAILS
+        # =================================================
+
+        if related_object:
+
+            data[module] = {
+                "id": activity.object_id,
+                "name": self.get_object_name(
+                    related_object
+                )
+            }
+
+        else:
+
+            data[module] = None
+
+        # =================================================
+        # REMOVE INPUT-ONLY FIELDS
+        # =================================================
+
+        data.pop(
+            "sender_id",
+            None
+        )
+
+        data.pop(
+            "module_id",
+            None
+        )
+
+        # =================================================
+        # ARRANGE FINAL RESPONSE
+        # =================================================
+
+        response = {}
+
+        # ID
+        response["id"] = data.pop(
+            "id"
+        )
+
+        # CREATED BY
+        response["created_by"] = data.pop(
+            "created_by"
+        )
+
+        # MODULE
+        response["module"] = data.pop(
+            "module"
+        )
+
+        # LEAD / DEAL / COMPANY / TICKET
+        response[module] = data.pop(
+            module
+        )
+
+        # NOTE + TIMESTAMPS
+        response.update(data)
+
+        return response

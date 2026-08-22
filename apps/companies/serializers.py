@@ -1,31 +1,93 @@
+# Import Django REST Framework serializers
 from rest_framework import serializers
 
+# Import Company model
 from .models import Company
 
 
-class CompanySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Company
-        fields = "__all__"
+# ---------------------------------------------------------
+# COMPANY CREATE SERIALIZER
+# ---------------------------------------------------------
 
+class CompanySerializer(serializers.ModelSerializer):
+
+    class Meta:
+        # Use Company model
+        model = Company
+
+        # Fields in the exact frontend form order
+        fields = [
+            "domain_name",
+            "company_name",
+            "company_owner",
+            "industry",
+            "type",
+            "city",
+            "country_region",
+            "no_of_employees",
+            "annual_revenue",
+            "phone_number",
+            "email",
+        ]
+
+
+# ---------------------------------------------------------
+# COMPANY LIST / DETAIL SERIALIZER
+# ---------------------------------------------------------
 
 class CompanyListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Company
-        fields = "__all__"
 
+    # Return the owner's email
+    company_owner_name = serializers.CharField(
+        source="company_owner.email",
+        read_only=True
+    )
+
+    class Meta:
+        # Use Company model
+        model = Company
+
+        # Return fields in frontend order
+        fields = [
+            "id",
+            "domain_name",
+            "company_name",
+            "company_owner",
+            "company_owner_name",
+            "industry",
+            "type",
+            "city",
+            "country_region",
+            "no_of_employees",
+            "annual_revenue",
+            "phone_number",
+            "email",
+            "created_at",
+            "updated_at",
+        ]
+
+
+# ---------------------------------------------------------
+# COMPANY UPDATE SERIALIZER
+# ---------------------------------------------------------
 
 class UpdateCompanySerializer(serializers.ModelSerializer):
+
     class Meta:
+        # Use Company model
         model = Company
-        fields = (
-            "name",
-            "email",
-            "phone_number",
-            "website",
+
+        # Fields that can be updated
+        fields = [
+            "domain_name",
+            "company_name",
+            "company_owner",
             "industry",
-            "employees",
+            "type",
+            "city",
+            "country_region",
+            "no_of_employees",
             "annual_revenue",
-            "lifecycle_stage",
-            "owner",
-        )
+            "phone_number",
+            "email",
+        ]

@@ -17,41 +17,29 @@ class DealCreateSerializer(serializers.ModelSerializer):
             "deal_owner",
             "close_date",
             "priority",
-            "created_at",
+            "created_date",
             "updated_at",
         ]
 
         read_only_fields = [
             "id",
-            "deal_owner",
-            "created_at",
+            "created_date",
             "updated_at",
         ]
 
-    def validate_associated_lead(self, lead):
-
-        if not lead.contact_owner:
-            raise serializers.ValidationError(
-                "This lead does not have a contact owner."
-            )
-
-        return lead
-
     def create(self, validated_data):
 
-        # Get selected Lead
+        # Get the selected Lead
         lead = validated_data["associated_lead"]
-
-        # Automatically get Contact Owner
-        validated_data["deal_owner"] = lead.contact_owner
 
         # Create Deal
         deal = Deal.objects.create(
             **validated_data
         )
 
-        # Update Lead status
+        # Update Lead status based on Deal stage
         lead.lead_status = deal.deal_stage
+
         lead.save(
             update_fields=["lead_status"]
         )
@@ -60,28 +48,18 @@ class DealCreateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
 
-        # Get associated Lead
-        lead = validated_data.get(
-            "associated_lead",
-            instance.associated_lead
-        )
-
-        if not lead.contact_owner:
-            raise serializers.ValidationError(
-                "This lead does not have a contact owner."
-            )
-
-        # Automatically update Deal Owner
-        validated_data["deal_owner"] = lead.contact_owner
-
         # Update Deal
         instance = super().update(
             instance,
             validated_data
         )
 
-        # Update Lead status
+        # Get the associated Lead
+        lead = instance.associated_lead
+
+        # Update Lead status based on Deal stage
         lead.lead_status = instance.deal_stage
+
         lead.save(
             update_fields=["lead_status"]
         )
@@ -93,7 +71,7 @@ class DealListSerializer(serializers.ModelSerializer):
 
     lead_name = serializers.SerializerMethodField()
 
-    # Same field name: deal_owner
+    # Response will show owner's name instead of ID
     deal_owner = serializers.SerializerMethodField()
 
     class Meta:
@@ -107,7 +85,6 @@ class DealListSerializer(serializers.ModelSerializer):
             "close_date",
             "deal_owner",
             "amount",
-            "priority",
         ]
 
     def get_lead_name(self, obj):

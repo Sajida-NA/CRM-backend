@@ -40,6 +40,8 @@ DEBUG = config("DEBUG", cast=bool)
 ALLOWED_HOSTS = []
 
 
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -49,26 +51,34 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.companies',
-    'apps.activities',
+    
+    
+    
 
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
     'apps.accounts',
+    'apps.companies',
     "apps.leads",
     "apps.deals",
-    'apps.tickets',
+    "apps.tickets",
+    
 
-    # Activity apps
+# Activity apps
     "apps.activities.activity",
     "apps.activities.note",
     "apps.activities.call",
     "apps.activities.email",
     "apps.activities.meeting",
+    "apps.activities.task",
+ 
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+   
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -77,6 +87,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    ]
+
 
 ROOT_URLCONF = 'config.urls'
 
@@ -122,7 +137,7 @@ EMAIL_PORT = config("EMAIL_PORT", cast=int)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", cast=bool)
-# EMAIL_USE_SSL = config("EMAIL_USE_SSL", cast=bool)
+
 
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL")
 
@@ -181,4 +196,5 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
+
 

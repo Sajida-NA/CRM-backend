@@ -1,29 +1,41 @@
+# Import Django admin tools
 from django.contrib import admin
+
+# Import Company model
 from .models import Company
 
 
+# ---------------------------------------------------------
+# COMPANY ADMIN CONFIGURATION
+# ---------------------------------------------------------
+
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
+
+    # Company table columns
     list_display = (
-        "id",
-        "name",
-        "email",
+        "company_name",
+        "company_owner",
         "phone_number",
         "industry",
-        "owner",
-        "lifecycle_stage",
+        "city",
+        "country_region",
         "created_at",
     )
 
+    # Search fields
     search_fields = (
-        "name",
+        "company_name",
+        "domain_name",
         "email",
         "phone_number",
+        "industry",
     )
 
+    # Filters in Figma order
     list_filter = (
         "industry",
-        "lifecycle_stage",
+        "city",
+        "country_region",
+        "created_at",
     )
-
-# Register your models here.

@@ -57,7 +57,7 @@ class Deal(models.Model):
         choices=PRIORITY_CHOICES
     )
 
-    created_at = models.DateTimeField(
+    created_date = models.DateTimeField(
         auto_now_add=True
     )
 

@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from django.contrib.contenttypes.models import ContentType
 
 from .models import Activity
 
@@ -8,141 +7,113 @@ class ActivitySerializer(serializers.ModelSerializer):
 
     module = serializers.SerializerMethodField()
 
-    sender_id = serializers.SerializerMethodField()
-    sender_name = serializers.SerializerMethodField()
-    sender_email = serializers.SerializerMethodField()
+    module_id = serializers.IntegerField(
+        source="object_id",
+        read_only=True
+    )
+
+    created_by_name = serializers.SerializerMethodField()
+
+    data = serializers.SerializerMethodField()
 
     class Meta:
         model = Activity
 
         fields = [
             "id",
-
-            # Activity
             "activity_type",
-
-            # CRM module
             "module",
-            "object_id",
-
-            # Sender
-            "sender_id",
-            "sender_name",
-            "sender_email",
-
-            # Dates
+            "module_id",
+            "created_by",
+            "created_by_name",
             "created_at",
             "updated_at",
+            "data",
         ]
 
         read_only_fields = [
             "id",
-            "sender_id",
-            "sender_name",
-            "sender_email",
+            "created_by",
+            "created_by_name",
             "created_at",
             "updated_at",
         ]
 
-    # -----------------------------------
-    # Module
-    # -----------------------------------
-
     def get_module(self, obj):
+
         return obj.content_type.model
 
-    # -----------------------------------
-    # Sender ID
-    # -----------------------------------
-
-    def get_sender_id(self, obj):
-
-        if not obj.created_by:
-            return None
-
-        return obj.created_by.id
-
-    # -----------------------------------
-    # Sender Name
-    # -----------------------------------
-
-    def get_sender_name(self, obj):
+    def get_created_by_name(self, obj):
 
         user = obj.created_by
 
-        if not user:
-            return None
+        if hasattr(user, "get_full_name"):
+            name = user.get_full_name()
 
-        return user.get_full_name() or user.email
-
-    # -----------------------------------
-    # Sender Email
-    # -----------------------------------
-
-    def get_sender_email(self, obj):
-
-        user = obj.created_by
-
-        if not user:
-            return None
+            if name:
+                return name
 
         return user.email
 
-    # -----------------------------------
-    # Validation
-    # -----------------------------------
+    def get_data(self, obj):
 
-    def validate(self, attrs):
+        if obj.activity_type == "note":
 
-        module = self.initial_data.get("module")
+            return {
+                "id": obj.note.id,
+                "content": obj.note.content,
+                "created_at": obj.note.created_at,
+                "updated_at": obj.note.updated_at,
+            }
 
-        allowed_modules = [
-            "lead",
-            "deal",
-            "company",
-            "ticket",
-        ]
+        if obj.activity_type == "call":
 
-        if not module:
-            raise serializers.ValidationError({
-                "module": "This field is required."
-            })
+            return {
+                "id": obj.call.id,
+                "call_outcome": obj.call.call_outcome,
+                "duration": obj.call.duration,
+                "notes": obj.call.notes,
+                "created_at": obj.call.created_at,
+                "updated_at": obj.call.updated_at,
+            }
 
-        module = module.lower()
+        if obj.activity_type == "task":
 
-        if module not in allowed_modules:
-            raise serializers.ValidationError({
-                "module": (
-                    f"Choose one of: {', '.join(allowed_modules)}"
-                )
-            })
+            return {
+                "id": obj.task.id,
+                "title": obj.task.title,
+                "description": obj.task.description,
+                "due_date": obj.task.due_date,
+                "status": obj.task.status,
+                "priority": obj.task.priority,
+                "created_at": obj.task.created_at,
+                "updated_at": obj.task.updated_at,
+            }
 
-        try:
-            content_type = ContentType.objects.get(
-                model=module
-            )
+        if obj.activity_type == "email":
 
-        except ContentType.DoesNotExist:
+            return {
+                "id": obj.email.id,
+                "to_recipients": obj.email.to_recipients,
+                "cc": obj.email.cc,
+                "bcc": obj.email.bcc,
+                "subject": obj.email.subject,
+                "body": obj.email.body,
+                "status": obj.email.status,
+                "sent_at": obj.email.sent_at,
+            }
 
-            raise serializers.ValidationError({
-                "module": f"No model found for module '{module}'."
-            })
+        if obj.activity_type == "meeting":
 
-        attrs["content_type"] = content_type
+            return {
+                "id": obj.meeting.id,
+                "title": obj.meeting.title,
+                "meeting_date": obj.meeting.meeting_date,
+                "location": obj.meeting.location,
+                "description": obj.meeting.description,
+                "reminder": obj.meeting.reminder,
+                "created_at": obj.meeting.created_at,
+                "updated_at": obj.meeting.updated_at,
+            }
 
-        return attrs
-
-    # -----------------------------------
-    # Create
-    # -----------------------------------
-
-    def create(self, validated_data):
-
-        request = self.context.get("request")
-
-        if request and request.user.is_authenticated:
-            validated_data["created_by"] = request.user
-
-        return Activity.objects.create(
-            **validated_data
-        )
+        return None

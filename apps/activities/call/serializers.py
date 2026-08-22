@@ -1,26 +1,19 @@
+from rest_framework import serializers
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
-from django.db import transaction
 
-from rest_framework import serializers
-
-from .models import Note
+from .models import Call
 from apps.activities.activity.models import Activity
 
 
 User = get_user_model()
 
 
-class NoteSerializer(serializers.ModelSerializer):
+class CallSerializer(serializers.ModelSerializer):
 
     # =================================================
     # INPUT ONLY
     # =================================================
-
-    sender_id = serializers.IntegerField(
-        write_only=True,
-        required=True
-    )
 
     module = serializers.CharField(
         write_only=True,
@@ -28,6 +21,11 @@ class NoteSerializer(serializers.ModelSerializer):
     )
 
     module_id = serializers.IntegerField(
+        write_only=True,
+        required=True
+    )
+
+    sender_id = serializers.IntegerField(
         write_only=True,
         required=True
     )
@@ -46,23 +44,43 @@ class NoteSerializer(serializers.ModelSerializer):
 
     class Meta:
 
-        model = Note
+        model = Call
 
         fields = [
+
+            # -----------------------------------------
+            # Call ID
+            # -----------------------------------------
+
             "id",
 
-            # Created user
+            # -----------------------------------------
+            # Created By
+            # -----------------------------------------
+
             "created_by",
 
-            # Input
-            "sender_id",
+            # -----------------------------------------
+            # Input Fields
+            # -----------------------------------------
+
             "module",
             "module_id",
+            "sender_id",
 
-            # Note
+            # -----------------------------------------
+            # Call Details
+            # -----------------------------------------
+
+            "call_outcome",
+            "date",
+            "time",
             "note",
 
+            # -----------------------------------------
             # Timestamps
+            # -----------------------------------------
+
             "created_at",
             "updated_at",
         ]
@@ -80,114 +98,95 @@ class NoteSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
 
-        sender_id = attrs.get("sender_id")
         module = attrs.get("module")
-        module_id = attrs.get("module_id")
+
+        module_id = attrs.get(
+            "module_id"
+        )
+
+        sender_id = attrs.get(
+            "sender_id"
+        )
 
         # =================================================
-        # SENDER VALIDATION
-        # =================================================
-
-        if sender_id is None:
-
-            raise serializers.ValidationError({
-                "sender_id": "This field is required."
-            })
-
-        try:
-
-            sender = User.objects.get(
-                id=sender_id
-            )
-
-        except User.DoesNotExist:
-
-            raise serializers.ValidationError({
-                "sender_id": (
-                    f"User with id {sender_id} "
-                    "does not exist."
-                )
-            })
-
-        # =================================================
-        # MODULE VALIDATION
+        # CHECK MODULE
         # =================================================
 
         if not module:
 
             raise serializers.ValidationError({
-                "module": "This field is required."
+                "module": "Module is required."
             })
+
+        # =================================================
+        # CHECK MODULE ID
+        # =================================================
+
+        if module_id is None:
+
+            raise serializers.ValidationError({
+                "module_id": "Module ID is required."
+            })
+
+        # =================================================
+        # CHECK SENDER ID
+        # =================================================
+
+        if sender_id is None:
+
+            raise serializers.ValidationError({
+                "sender_id": "Sender ID is required."
+            })
+
+        # =================================================
+        # NORMALIZE MODULE
+        # =================================================
 
         module = module.lower().strip()
 
         # =================================================
-        # MODULE MAP
+        # ALLOWED MODULES
         # =================================================
 
-        MODULE_MAP = {
+        allowed_modules = [
+            "lead",
+            "deal",
+            "company",
+            "ticket",
+        ]
 
-            "lead": (
-                "leads",
-                "lead"
-            ),
-
-            "deal": (
-                "deals",
-                "deal"
-            ),
-
-            "company": (
-                "companies",
-                "company"
-            ),
-
-            "ticket": (
-                "tickets",
-                "ticket"
-            ),
-        }
-
-        if module not in MODULE_MAP:
+        if module not in allowed_modules:
 
             raise serializers.ValidationError({
                 "module": (
                     "Invalid module. "
-                    "Allowed modules: "
+                    "Allowed modules are: "
                     "lead, deal, company, ticket."
                 )
             })
 
-        app_label, model_name = MODULE_MAP[module]
-
         # =================================================
-        # CONTENT TYPE
+        # GET CONTENT TYPE
         # =================================================
 
         try:
 
             content_type = ContentType.objects.get(
-                app_label=app_label,
-                model=model_name
+                model=module
             )
 
         except ContentType.DoesNotExist:
 
             raise serializers.ValidationError({
                 "module": (
-                    f"{module} module does not exist."
+                    f"Model '{module}' "
+                    "does not exist."
                 )
             })
 
         # =================================================
-        # MODULE ID
+        # GET MODEL CLASS
         # =================================================
-
-        if module_id is None:
-
-            raise serializers.ValidationError({
-                "module_id": "This field is required."
-            })
 
         model_class = content_type.model_class()
 
@@ -201,11 +200,11 @@ class NoteSerializer(serializers.ModelSerializer):
             })
 
         # =================================================
-        # CHECK MODULE OBJECT
+        # CHECK CRM OBJECT EXISTS
         # =================================================
 
         if not model_class.objects.filter(
-            id=module_id
+            pk=module_id
         ).exists():
 
             raise serializers.ValidationError({
@@ -216,13 +215,25 @@ class NoteSerializer(serializers.ModelSerializer):
             })
 
         # =================================================
-        # STORE VALUES
+        # CHECK USER EXISTS
         # =================================================
 
-        attrs["sender"] = sender
+        if not User.objects.filter(
+            pk=sender_id
+        ).exists():
+
+            raise serializers.ValidationError({
+                "sender_id": (
+                    f"User with id "
+                    f"{sender_id} does not exist."
+                )
+            })
+
+        # =================================================
+        # SAVE NORMALIZED MODULE
+        # =================================================
+
         attrs["module"] = module
-        attrs["content_type"] = content_type
-        attrs["object_id"] = module_id
 
         return attrs
 
@@ -230,57 +241,63 @@ class NoteSerializer(serializers.ModelSerializer):
     # CREATE
     # =================================================
 
-    @transaction.atomic
     def create(self, validated_data):
 
-        sender = validated_data.pop(
-            "sender"
-        )
+        # =================================================
+        # GET INPUT VALUES
+        # =================================================
 
         module = validated_data.pop(
             "module"
         )
 
-        content_type = validated_data.pop(
-            "content_type"
+        module_id = validated_data.pop(
+            "module_id"
         )
 
-        object_id = validated_data.pop(
-            "object_id"
-        )
-
-        # Remove input-only fields
-        validated_data.pop(
-            "sender_id",
-            None
-        )
-
-        validated_data.pop(
-            "module_id",
-            None
+        sender_id = validated_data.pop(
+            "sender_id"
         )
 
         # =================================================
-        # CREATE ACTIVITY
+        # GET CONTENT TYPE
+        # =================================================
+
+        content_type = ContentType.objects.get(
+            model=module
+        )
+
+        # =================================================
+        # CREATE BASE ACTIVITY
         # =================================================
 
         activity = Activity.objects.create(
-            activity_type="note",
-            created_by=sender,
+
+            activity_type="call",
+
+            created_by_id=sender_id,
+
             content_type=content_type,
-            object_id=object_id
+
+            object_id=module_id
         )
 
         # =================================================
-        # CREATE NOTE
+        # CREATE CALL
         # =================================================
 
-        note = Note.objects.create(
+        call = Call.objects.create(
+
             activity=activity,
+
+            connected_content_type=content_type,
+
+            connected_object_id=module_id,
+
             **validated_data
         )
 
-        return note
+        return call
 
     # =================================================
     # UPDATE
@@ -292,11 +309,9 @@ class NoteSerializer(serializers.ModelSerializer):
         validated_data
     ):
 
-        # These fields cannot be changed
-        validated_data.pop(
-            "sender_id",
-            None
-        )
+        # =================================================
+        # THESE CANNOT BE CHANGED
+        # =================================================
 
         validated_data.pop(
             "module",
@@ -309,29 +324,32 @@ class NoteSerializer(serializers.ModelSerializer):
         )
 
         validated_data.pop(
-            "sender",
-            None
-        )
-
-        validated_data.pop(
-            "content_type",
-            None
-        )
-
-        validated_data.pop(
-            "object_id",
+            "sender_id",
             None
         )
 
         # =================================================
-        # UPDATE NOTE
+        # UPDATE CALL DETAILS
         # =================================================
 
-        if "note" in validated_data:
+        fields = [
+            "call_outcome",
+            "date",
+            "time",
+            "note",
+        ]
 
-            instance.note = validated_data["note"]
+        for field in fields:
 
-            instance.save()
+            if field in validated_data:
+
+                setattr(
+                    instance,
+                    field,
+                    validated_data[field]
+                )
+
+        instance.save()
 
         return instance
 
@@ -339,20 +357,29 @@ class NoteSerializer(serializers.ModelSerializer):
     # CREATED BY
     # =================================================
 
-    def get_created_by(
-        self,
-        obj
-    ):
+    def get_created_by(self, obj):
+
+        # =================================================
+        # CHECK ACTIVITY
+        # =================================================
 
         if not obj.activity:
 
             return None
+
+        # =================================================
+        # GET USER
+        # =================================================
 
         user = obj.activity.created_by
 
         if not user:
 
             return None
+
+        # =================================================
+        # GET USER NAME
+        # =================================================
 
         full_name = user.get_full_name()
 
@@ -363,6 +390,10 @@ class NoteSerializer(serializers.ModelSerializer):
         else:
 
             name = user.email
+
+        # =================================================
+        # RETURN USER DETAILS
+        # =================================================
 
         return {
             "id": user.id,
@@ -375,7 +406,7 @@ class NoteSerializer(serializers.ModelSerializer):
 
     def get_object_name(
         self,
-        related_object
+        connected_object
     ):
 
         # =================================================
@@ -383,24 +414,26 @@ class NoteSerializer(serializers.ModelSerializer):
         # =================================================
 
         if hasattr(
-            related_object,
+            connected_object,
             "first_name"
         ):
 
             first_name = (
                 getattr(
-                    related_object,
+                    connected_object,
                     "first_name",
                     ""
-                ) or ""
+                )
+                or ""
             )
 
             last_name = (
                 getattr(
-                    related_object,
+                    connected_object,
                     "last_name",
                     ""
-                ) or ""
+                )
+                or ""
             )
 
             full_name = (
@@ -416,51 +449,51 @@ class NoteSerializer(serializers.ModelSerializer):
         # =================================================
 
         if hasattr(
-            related_object,
+            connected_object,
             "deal_name"
         ):
 
-            return related_object.deal_name
+            return connected_object.deal_name
 
         # =================================================
         # COMPANY
         # =================================================
 
         if hasattr(
-            related_object,
+            connected_object,
             "company_name"
         ):
 
-            return related_object.company_name
-
-        # =================================================
-        # COMPANY FALLBACK
-        # =================================================
-
-        if hasattr(
-            related_object,
-            "name"
-        ):
-
-            return related_object.name
+            return connected_object.company_name
 
         # =================================================
         # TICKET
         # =================================================
 
         if hasattr(
-            related_object,
+            connected_object,
             "title"
         ):
 
-            return related_object.title
+            return connected_object.title
+
+        # =================================================
+        # GENERIC NAME FIELD
+        # =================================================
+
+        if hasattr(
+            connected_object,
+            "name"
+        ):
+
+            return connected_object.name
 
         # =================================================
         # FALLBACK
         # =================================================
 
         return str(
-            related_object
+            connected_object
         )
 
     # =================================================
@@ -473,7 +506,7 @@ class NoteSerializer(serializers.ModelSerializer):
     ):
 
         # =================================================
-        # NORMAL DATA
+        # GET NORMAL SERIALIZER DATA
         # =================================================
 
         data = super().to_representation(
@@ -481,70 +514,41 @@ class NoteSerializer(serializers.ModelSerializer):
         )
 
         # =================================================
-        # GET ACTIVITY
+        # GET CONNECTED OBJECT
         # =================================================
 
-        activity = instance.activity
-
-        if not activity:
-
-            return data
-
-        # =================================================
-        # GET CONTENT TYPE
-        # =================================================
-
-        content_type = activity.content_type
-
-        if not content_type:
-
-            return data
+        connected_object = instance.connected
 
         # =================================================
         # GET MODULE
         # =================================================
 
-        module = content_type.model.lower()
+        module = (
+            instance
+            .connected_content_type
+            .model
+            .lower()
+        )
 
         # =================================================
-        # GET ACTUAL CRM OBJECT
-        # =================================================
-
-        model_class = content_type.model_class()
-
-        if model_class:
-
-            try:
-
-                related_object = model_class.objects.get(
-                    pk=activity.object_id
-                )
-
-            except model_class.DoesNotExist:
-
-                related_object = None
-
-        else:
-
-            related_object = None
-
-        # =================================================
-        # MODULE
+        # ADD MODULE
         # =================================================
 
         data["module"] = module
 
         # =================================================
-        # MODULE DETAILS
+        # ADD MODULE OBJECT
         # =================================================
 
-        if related_object:
+        if connected_object:
+
+            object_name = self.get_object_name(
+                connected_object
+            )
 
             data[module] = {
-                "id": activity.object_id,
-                "name": self.get_object_name(
-                    related_object
-                )
+                "id": instance.connected_object_id,
+                "name": object_name
             }
 
         else:
@@ -556,42 +560,45 @@ class NoteSerializer(serializers.ModelSerializer):
         # =================================================
 
         data.pop(
-            "sender_id",
-            None
-        )
-
-        data.pop(
             "module_id",
             None
         )
 
+        data.pop(
+            "sender_id",
+            None
+        )
+
         # =================================================
-        # ARRANGE FINAL RESPONSE
+        # ARRANGE RESPONSE ORDER
         # =================================================
 
         response = {}
 
-        # ID
         response["id"] = data.pop(
             "id"
         )
 
-        # CREATED BY
         response["created_by"] = data.pop(
             "created_by"
         )
 
-        # MODULE
         response["module"] = data.pop(
             "module"
         )
 
-        # LEAD / DEAL / COMPANY / TICKET
+        # =================================================
+        # ADD DYNAMIC MODULE
+        # =================================================
+
         response[module] = data.pop(
             module
         )
 
-        # NOTE + TIMESTAMPS
+        # =================================================
+        # ADD REST OF DETAILS
+        # =================================================
+
         response.update(data)
 
         return response

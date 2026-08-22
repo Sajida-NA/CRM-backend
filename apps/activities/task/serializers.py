@@ -1,5 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+
 from rest_framework import serializers
 
 from .models import Task
@@ -8,13 +9,41 @@ from apps.activities.activity.models import Activity
 
 class TaskSerializer(serializers.ModelSerializer):
 
-    # Input fields
-    module = serializers.CharField(write_only=True, required=False)
-    module_id = serializers.IntegerField(write_only=True, required=False)
+    # ========================================
+    # INPUT FIELDS
+    # ========================================
 
-    # Response fields
-    module_details = serializers.SerializerMethodField()
-    assigned_to_details = serializers.SerializerMethodField()
+    sender_id = serializers.IntegerField(
+        write_only=True,
+        required=False
+    )
+
+    module = serializers.CharField(
+        write_only=True,
+        required=False
+    )
+
+    module_id = serializers.IntegerField(
+        write_only=True,
+        required=False
+    )
+
+    assigned_to = serializers.PrimaryKeyRelatedField(
+        queryset=Task._meta.get_field(
+            "assigned_to"
+        ).remote_field.model.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+
+    # ========================================
+    # RESPONSE FIELDS
+    # ========================================
+
+    created_by = serializers.SerializerMethodField()
+
+    lead = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -22,12 +51,16 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = [
             "id",
 
-            # Module
+            # INPUT
+            "sender_id",
             "module",
             "module_id",
-            "module_details",
 
-            # Task details
+            # RESPONSE
+            "created_by",
+            "lead",
+
+            # Task
             "task_name",
             "due_date",
             "time",
@@ -37,7 +70,6 @@ class TaskSerializer(serializers.ModelSerializer):
 
             # Assigned user
             "assigned_to",
-            "assigned_to_details",
 
             # Timestamps
             "created_at",
@@ -46,53 +78,172 @@ class TaskSerializer(serializers.ModelSerializer):
 
         read_only_fields = [
             "id",
-            "module_details",
-            "assigned_to_details",
+            "created_by",
+            "lead",
             "created_at",
             "updated_at",
         ]
 
-    # --------------------------------
-    # Module details
-    # --------------------------------
+    # ========================================
+    # CREATED BY
+    # ========================================
 
-    def get_module_details(self, obj):
+    def get_created_by(self, obj):
 
-        return {
-            "name": obj.content_type.model,
-            "id": obj.object_id
-        }
+        user = obj.activity.created_by
 
-    # --------------------------------
-    # Assigned user details
-    # --------------------------------
-
-    def get_assigned_to_details(self, obj):
-
-        if not obj.assigned_to:
+        if not user:
             return None
 
         return {
-            "id": obj.assigned_to.id,
-            "name": obj.assigned_to.get_full_name()
+            "id": user.id,
+            "name": (
+                user.get_full_name()
+                or user.email
+            )
         }
 
-    # --------------------------------
-    # Validate module
-    # --------------------------------
+    # ========================================
+    # LEAD / CRM OBJECT
+    # ========================================
+
+    def get_lead(self, obj):
+
+        related_object = obj.related_object
+
+        if not related_object:
+            return None
+
+        model_name = obj.content_type.model
+
+        # Lead
+        if model_name == "lead":
+
+            return {
+                "id": related_object.id,
+                "name": (
+                    f"{related_object.first_name} "
+                    f"{related_object.last_name}"
+                ).strip()
+            }
+
+        # Deal
+        if model_name == "deal":
+
+            lead = getattr(
+                related_object,
+                "associated_lead",
+                None
+            )
+
+            if lead:
+
+                return {
+                    "id": lead.id,
+                    "name": (
+                        f"{lead.first_name} "
+                        f"{lead.last_name}"
+                    ).strip()
+                }
+
+            return {
+                "id": related_object.id,
+                "name": getattr(
+                    related_object,
+                    "deal_name",
+                    str(related_object)
+                )
+            }
+
+        # Company
+        if model_name == "company":
+
+            return {
+                "id": related_object.id,
+                "name": getattr(
+                    related_object,
+                    "name",
+                    str(related_object)
+                )
+            }
+
+        # Ticket
+        if model_name == "ticket":
+
+            return {
+                "id": related_object.id,
+                "name": getattr(
+                    related_object,
+                    "name",
+                    str(related_object)
+                )
+            }
+
+        return None
+
+    # ========================================
+    # VALIDATE
+    # ========================================
 
     def validate(self, attrs):
 
-        module = attrs.pop("module", None)
-        module_id = attrs.pop("module_id", None)
+        module = attrs.pop(
+            "module",
+            None
+        )
 
-        # For UPDATE/PATCH, module is optional
+        module_id = attrs.pop(
+            "module_id",
+            None
+        )
+
+        sender_id = attrs.pop(
+            "sender_id",
+            None
+        )
+
+        # ====================================
+        # SENDER
+        # ====================================
+
+        if sender_id is not None:
+
+            User = Task._meta.get_field(
+                "assigned_to"
+            ).remote_field.model
+
+            try:
+
+                sender = User.objects.get(
+                    id=sender_id
+                )
+
+            except User.DoesNotExist:
+
+                raise serializers.ValidationError({
+                    "sender_id": "Sender does not exist."
+                })
+
+            attrs["_sender"] = sender
+
+        # ====================================
+        # UPDATE WITHOUT MODULE
+        # ====================================
+
         if module is None and module_id is None:
             return attrs
 
+        # ====================================
+        # MODULE + MODULE ID REQUIRED
+        # ====================================
+
         if module is None or module_id is None:
+
             raise serializers.ValidationError({
-                "module": "Both module and module_id are required."
+                "module": (
+                    "Both module and module_id "
+                    "are required."
+                )
             })
 
         module = module.lower()
@@ -105,24 +256,29 @@ class TaskSerializer(serializers.ModelSerializer):
         }
 
         if module not in MODULE_MAP:
+
             raise serializers.ValidationError({
                 "module": (
-                    "Invalid module. "
-                    "Allowed modules: lead, deal, company, ticket."
+                    "Invalid module. Allowed modules: "
+                    "lead, deal, company, ticket."
                 )
             })
 
         app_label, model_name = MODULE_MAP[module]
 
         try:
+
             content_type = ContentType.objects.get(
                 app_label=app_label,
                 model=model_name
             )
 
         except ContentType.DoesNotExist:
+
             raise serializers.ValidationError({
-                "module": f"{module} module does not exist."
+                "module": (
+                    f"{module} module does not exist."
+                )
             })
 
         model_class = content_type.model_class()
@@ -133,7 +289,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
             raise serializers.ValidationError({
                 "module_id": (
-                    f"{module} with id {module_id} does not exist."
+                    f"{module} with id "
+                    f"{module_id} does not exist."
                 )
             })
 
@@ -142,24 +299,56 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    # --------------------------------
-    # Create Task + Activity
-    # --------------------------------
+    # ========================================
+    # CREATE TASK + ACTIVITY
+    # ========================================
 
     @transaction.atomic
     def create(self, validated_data):
 
-        request = self.context["request"]
+        sender = validated_data.pop(
+            "_sender",
+            None
+        )
 
-        content_type = validated_data["content_type"]
-        object_id = validated_data["object_id"]
+        request = self.context.get(
+            "request"
+        )
+
+        # If sender_id wasn't provided,
+        # use logged-in user.
+        if sender is None:
+
+            if request and request.user.is_authenticated:
+                sender = request.user
+
+            else:
+                raise serializers.ValidationError({
+                    "sender_id": "Sender ID is required."
+                })
+
+        content_type = validated_data[
+            "content_type"
+        ]
+
+        object_id = validated_data[
+            "object_id"
+        ]
+
+        # ====================================
+        # CREATE ACTIVITY
+        # ====================================
 
         activity = Activity.objects.create(
             activity_type="task",
-            created_by=request.user,
+            created_by=sender,
             content_type=content_type,
             object_id=object_id
         )
+
+        # ====================================
+        # CREATE TASK
+        # ====================================
 
         task = Task.objects.create(
             activity=activity,
@@ -168,31 +357,95 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return task
 
-    # --------------------------------
-    # Update Task
-    # --------------------------------
+    # ========================================
+    # UPDATE
+    # ========================================
 
     @transaction.atomic
     def update(self, instance, validated_data):
 
-        # Update module if supplied
+        validated_data.pop(
+            "_sender",
+            None
+        )
+
         if "content_type" in validated_data:
-            instance.content_type = validated_data.pop("content_type")
+
+            instance.content_type = (
+                validated_data.pop(
+                    "content_type"
+                )
+            )
 
         if "object_id" in validated_data:
-            instance.object_id = validated_data.pop("object_id")
 
-        # Update remaining fields
+            instance.object_id = (
+                validated_data.pop(
+                    "object_id"
+                )
+            )
+
         for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+
+            setattr(
+                instance,
+                attr,
+                value
+            )
 
         instance.save()
 
-        # Keep Activity connected to same CRM object
-        if hasattr(instance, "activity"):
+        # Keep Activity connected
+        # to the same CRM object
 
-            instance.activity.content_type = instance.content_type
-            instance.activity.object_id = instance.object_id
+        if instance.activity:
+
+            instance.activity.content_type = (
+                instance.content_type
+            )
+
+            instance.activity.object_id = (
+                instance.object_id
+            )
+
             instance.activity.save()
 
         return instance
+
+    # ========================================
+    # FINAL RESPONSE FORMAT
+    # ========================================
+
+    def to_representation(self, instance):
+
+        data = super().to_representation(
+            instance
+        )
+
+        # Module
+        if instance.content_type:
+
+            data["module"] = (
+                instance.content_type.model
+            )
+
+        # Assigned user
+        if instance.assigned_to:
+
+            data["assigned_to"] = {
+                "id": instance.assigned_to.id,
+                "name": (
+                    instance.assigned_to.get_full_name()
+                    or instance.assigned_to.email
+                )
+            }
+
+        else:
+
+            data["assigned_to"] = None
+
+        # Remove input-only fields
+        data.pop("sender_id", None)
+        data.pop("module_id", None)
+
+        return data

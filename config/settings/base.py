@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     "apps.leads",
     "apps.deals",
+    'apps.tickets',
 
     # Activity apps
     "apps.activities.activity",

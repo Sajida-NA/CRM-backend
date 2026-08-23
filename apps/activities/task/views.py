@@ -11,13 +11,19 @@ class TaskListCreateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # --------------------------------
-    # GET - List all tasks
-    # --------------------------------
-
     def get(self, request):
 
-        tasks = Task.objects.all().order_by("-created_at")
+        tasks = (
+            Task.objects
+            .select_related(
+                "activity",
+                "activity__created_by",
+                "assigned_to",
+                "content_type"
+            )
+            .all()
+            .order_by("-created_at")
+        )
 
         serializer = TaskSerializer(
             tasks,
@@ -30,10 +36,6 @@ class TaskListCreateView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # --------------------------------
-    # POST - Create task
-    # --------------------------------
-
     def post(self, request):
 
         serializer = TaskSerializer(
@@ -41,33 +43,22 @@ class TaskListCreateView(APIView):
             context={"request": request}
         )
 
-        if serializer.is_valid():
+        serializer.is_valid(raise_exception=True)
 
-            task = serializer.save()
-
-            response_serializer = TaskSerializer(
-                task,
-                context={"request": request}
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_201_CREATED
-            )
+        task = serializer.save()
 
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            TaskSerializer(
+                task,
+                context={"request": request}
+            ).data,
+            status=status.HTTP_201_CREATED
         )
 
 
 class TaskDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
-
-    # --------------------------------
-    # Get task
-    # --------------------------------
 
     def get_object(self, pk):
 
@@ -76,10 +67,6 @@ class TaskDetailView(APIView):
 
         except Task.DoesNotExist:
             return None
-
-    # --------------------------------
-    # GET - Single task
-    # --------------------------------
 
     def get(self, request, pk):
 
@@ -101,10 +88,6 @@ class TaskDetailView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # --------------------------------
-    # PUT - Full update
-    # --------------------------------
-
     def put(self, request, pk):
 
         task = self.get_object(pk)
@@ -121,28 +104,17 @@ class TaskDetailView(APIView):
             context={"request": request}
         )
 
-        if serializer.is_valid():
+        serializer.is_valid(raise_exception=True)
 
-            task = serializer.save()
-
-            response_serializer = TaskSerializer(
-                task,
-                context={"request": request}
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_200_OK
-            )
+        task = serializer.save()
 
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            TaskSerializer(
+                task,
+                context={"request": request}
+            ).data,
+            status=status.HTTP_200_OK
         )
-
-    # --------------------------------
-    # PATCH - Partial update
-    # --------------------------------
 
     def patch(self, request, pk):
 
@@ -161,28 +133,17 @@ class TaskDetailView(APIView):
             context={"request": request}
         )
 
-        if serializer.is_valid():
+        serializer.is_valid(raise_exception=True)
 
-            task = serializer.save()
-
-            response_serializer = TaskSerializer(
-                task,
-                context={"request": request}
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_200_OK
-            )
+        task = serializer.save()
 
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            TaskSerializer(
+                task,
+                context={"request": request}
+            ).data,
+            status=status.HTTP_200_OK
         )
-
-    # --------------------------------
-    # DELETE - Delete task
-    # --------------------------------
 
     def delete(self, request, pk):
 
@@ -197,6 +158,5 @@ class TaskDetailView(APIView):
         task.delete()
 
         return Response(
-            {"detail": "Task deleted successfully."},
             status=status.HTTP_204_NO_CONTENT
         )

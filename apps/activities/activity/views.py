@@ -1,28 +1,44 @@
+from django.contrib.contenttypes.models import ContentType
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from django.contrib.contenttypes.models import ContentType
-
 from .models import Activity
 from .serializers import ActivitySerializer
 
 
-class ActivityListCreateView(APIView):
+class ActivityListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # ==========================================
-    # GET ALL ACTIVITIES
-    # ==========================================
+    def get(self, request, module, module_id):
 
-    def get(self, request):
+        try:
 
-        activities = Activity.objects.select_related(
+            content_type = ContentType.objects.get(
+                model=module.lower()
+            )
+
+        except ContentType.DoesNotExist:
+
+            return Response(
+                {
+                    "error": f"Invalid module: {module}"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        activities = Activity.objects.filter(
+            content_type=content_type,
+            object_id=module_id
+        ).select_related(
             "created_by",
             "content_type"
-        ).order_by("-created_at")
+        ).order_by(
+            "-created_at"
+        )
 
         serializer = ActivitySerializer(
             activities,
@@ -34,99 +50,73 @@ class ActivityListCreateView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # ==========================================
-    # CREATE ACTIVITY
-    # ==========================================
 
-    def post(self, request):
-
-        serializer = ActivitySerializer(
-            data=request.data,
-            context={
-                "request": request
-            }
-        )
-
-        if serializer.is_valid():
-
-            activity = serializer.save()
-
-            return Response(
-                ActivitySerializer(activity).data,
-                status=status.HTTP_201_CREATED
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-class ActivityDetailView(APIView):
+class ActivityTypeListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # ==========================================
-    # GET ACTIVITY
-    # ==========================================
+    def get(
+        self,
+        request,
+        module,
+        module_id,
+        activity_type
+    ):
 
-    def get_object(self, pk):
+        valid_types = [
+            "note",
+            "call",
+            "task",
+            "email",
+            "meeting",
+        ]
 
-        try:
+        activity_type = activity_type.lower()
 
-            return Activity.objects.select_related(
-                "created_by",
-                "content_type"
-            ).get(pk=pk)
-
-        except Activity.DoesNotExist:
-
-            return None
-
-    def get(self, request, pk):
-
-        activity = self.get_object(pk)
-
-        if activity is None:
+        if activity_type not in valid_types:
 
             return Response(
                 {
-                    "detail": "Activity not found."
+                    "error": (
+                        f"Invalid activity type: "
+                        f"{activity_type}"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+
+            content_type = ContentType.objects.get(
+                model=module.lower()
+            )
+
+        except ContentType.DoesNotExist:
+
+            return Response(
+                {
+                    "error": f"Invalid module: {module}"
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        activities = Activity.objects.filter(
+            content_type=content_type,
+            object_id=module_id,
+            activity_type=activity_type
+        ).select_related(
+            "created_by",
+            "content_type"
+        ).order_by(
+            "-created_at"
+        )
+
         serializer = ActivitySerializer(
-            activity
+            activities,
+            many=True
         )
 
         return Response(
             serializer.data,
             status=status.HTTP_200_OK
-        )
-
-    # ==========================================
-    # DELETE
-    # ==========================================
-
-    def delete(self, request, pk):
-
-        activity = self.get_object(pk)
-
-        if activity is None:
-
-            return Response(
-                {
-                    "detail": "Activity not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        activity.delete()
-
-        return Response(
-            {
-                "message": "Activity deleted successfully."
-            },
-            status=status.HTTP_204_NO_CONTENT
         )

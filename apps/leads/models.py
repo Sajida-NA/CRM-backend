@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from apps.companies.models import Company
 
 
 class Product(models.Model):
@@ -85,10 +86,12 @@ class Lead(models.Model):
         blank=True
     )
 
-    company_type = models.CharField(
-        max_length=150,
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.SET_NULL,
         blank=True,
-        null=True
+        null=True,
+        related_name="leads"
     )
 
     city = models.CharField(

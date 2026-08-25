@@ -64,7 +64,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "contact_owner",
             "lead_status",
             "products",
-            "company_type",
+            "company",
             "city",
             "created_date",
         ]

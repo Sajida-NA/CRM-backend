@@ -53,7 +53,6 @@ class CompanyListSerializer(serializers.ModelSerializer):
             "domain_name",
             "company_name",
             "company_owner",
-            "company_owner_name",
             "industry",
             "type",
             "city",
@@ -62,7 +61,7 @@ class CompanyListSerializer(serializers.ModelSerializer):
             "annual_revenue",
             "phone_number",
             "email",
-            "created_at",
+            "created_date",
             "updated_at",
         ]
 

@@ -1,5 +1,5 @@
 from django.db import models
-
+from apps.deals.models import Deal
 from apps.accounts.models import User
 
 
@@ -33,7 +33,7 @@ class Ticket(models.Model):
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="WEB")
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="MEDIUM")
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tickets")
-    associated_deal = models.CharField(max_length=255, blank=True, null=True)
+    associated_deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name="tickets", default=None, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

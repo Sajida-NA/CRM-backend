@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from apps.activities.activity.models import Activity
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -18,6 +19,15 @@ class Meeting(models.Model):
     # ========================================
     # CRM MODULE
     # ========================================
+
+     # One Activity = One Meeting
+    activity = models.OneToOneField(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name="meeting",
+        null=True,
+        blank=True,
+    )
 
     content_type = models.ForeignKey(
         ContentType,

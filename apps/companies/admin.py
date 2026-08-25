@@ -20,7 +20,7 @@ class CompanyAdmin(admin.ModelAdmin):
         "industry",
         "city",
         "country_region",
-        "created_at",
+        "created_date",
     )
 
     # Search fields
@@ -37,5 +37,5 @@ class CompanyAdmin(admin.ModelAdmin):
         "industry",
         "city",
         "country_region",
-        "created_at",
+        "created_date",
     )

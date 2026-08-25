@@ -19,6 +19,7 @@ class DealAdmin(admin.ModelAdmin):
     list_filter = [
         "deal_owner",
         "deal_stage",
+        "close_date",
         "created_date",
     ]
 

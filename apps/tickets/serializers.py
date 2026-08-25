@@ -24,11 +24,11 @@ class UpdateTicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = (
-            "name",
+            "ticket_name",
             "description",
-            "status",
+            "ticket_status",
             "source",
             "priority",
-            "owner",
+            "ticket_owner",
             "associated_deal",
         )

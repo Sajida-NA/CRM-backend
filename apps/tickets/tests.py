@@ -21,30 +21,30 @@ class TicketAPITestCase(APITestCase):
     def test_create_ticket(self):
         url = reverse("ticket-list")
         payload = {
-            "name": "Payment failure issue",
+            "ticket_name": "Payment failure issue",
             "description": "Customer cannot complete payment.",
-            "status": "NEW",
+            "ticket_status": "NEW",
             "source": "EMAIL",
             "priority": "HIGH",
-            "owner": self.user.id,
+            "ticket_owner": self.user.id,
             "associated_deal": "DEAL-001",
         }
 
         response = self.client.post(url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["data"]["name"], payload["name"])
+        self.assertEqual(response.data["data"]["ticket_name"], payload["ticket_name"])
 
     def test_list_tickets(self):
         self.client.post(
             reverse("ticket-list"),
             {
-                "name": "Test ticket",
+                "ticket_name": "Test ticket",
                 "description": "Need work.",
-                "status": "NEW",
+                "ticket_status": "NEW",
                 "source": "PHONE",
                 "priority": "MEDIUM",
-                "owner": self.user.id,
+                "ticket_owner": self.user.id,
                 "associated_deal": "DEAL-002",
             },
             format="json",
@@ -59,12 +59,12 @@ class TicketAPITestCase(APITestCase):
         create_response = self.client.post(
             reverse("ticket-list"),
             {
-                "name": "Old ticket",
+                "ticket_name": "Old ticket",
                 "description": "Old description.",
-                "status": "NEW",
+                "ticket_status": "NEW",
                 "source": "EMAIL",
                 "priority": "LOW",
-                "owner": self.user.id,
+                "ticket_owner": self.user.id,
                 "associated_deal": "DEAL-003",
             },
             format="json",
@@ -84,12 +84,12 @@ class TicketAPITestCase(APITestCase):
         create_response = self.client.post(
             reverse("ticket-list"),
             {
-                "name": "Delete me",
+                "ticket_name": "Delete me",
                 "description": "Will delete.",
-                "status": "NEW",
+                "ticket_status": "NEW",
                 "source": "WEB",
                 "priority": "HIGH",
-                "owner": self.user.id,
+                "ticket_owner": self.user.id,
                 "associated_deal": "DEAL-004",
             },
             format="json",

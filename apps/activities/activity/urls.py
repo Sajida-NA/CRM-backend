@@ -1,32 +1,22 @@
 from django.urls import path
 
-from .views import (
-    ActivityListView,
-    ActivityTypeListView,
-)
+from .views import ActivityTimelineView,ActivityTypeDetailView
 
 
 urlpatterns = [
 
-    # Get ALL activities
-    #
-    # /api/activities/lead/5/
-    #
     path(
         "<str:module>/<int:module_id>/",
-        ActivityListView.as_view(),
-        name="activity-list"
+        ActivityTimelineView.as_view(),
+        name="activity-timeline"
     ),
 
-    # Get specific activity type
-    #
-    # /api/activities/lead/5/note/
-    # /api/activities/lead/5/call/
-    # /api/activities/lead/5/task/
-    #
+
+    # GET activities of one type
     path(
         "<str:module>/<int:module_id>/<str:activity_type>/",
-        ActivityTypeListView.as_view(),
-        name="activity-type-list"
+        ActivityTypeDetailView.as_view(),
+        name="activity-type-detail"
     ),
+
 ]

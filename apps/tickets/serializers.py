@@ -5,7 +5,7 @@ from .models import Ticket
 
 
 class TicketSerializer(serializers.ModelSerializer):
-    owner = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    ticket_owner = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
 
     class Meta:
         model = Ticket
@@ -13,7 +13,7 @@ class TicketSerializer(serializers.ModelSerializer):
 
 
 class TicketListSerializer(serializers.ModelSerializer):
-    owner = serializers.PrimaryKeyRelatedField(read_only=True)
+    ticket_owner = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Ticket

@@ -1,19 +1,12 @@
 from django.db import models
 from django.conf import settings
+from apps.activities.activity.models import Activity
+
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 
 class Meeting(models.Model):
-
-    ACTIVITY_TYPE_CHOICES = [
-        ("MEETING", "Meeting"),
-    ]
-
-    MODULE_CHOICES = [
-        ("LEAD", "Lead"),
-        ("DEAL", "Deal"),
-        ("COMPANY", "Company"),
-        ("TICKET", "Ticket"),
-    ]
 
     REMINDER_CHOICES = [
         ("5_MIN", "5 minutes before"),
@@ -23,23 +16,40 @@ class Meeting(models.Model):
         ("1_DAY", "1 day before"),
     ]
 
-    activity_type = models.CharField(
-        max_length=20,
-        choices=ACTIVITY_TYPE_CHOICES,
-        default="MEETING",
+    # ========================================
+    # CRM MODULE
+    # ========================================
+
+     # One Activity = One Meeting
+    activity = models.OneToOneField(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name="meeting",
+        null=True,
+        blank=True,
     )
 
-    module = models.CharField(
-        max_length=20,
-        choices=MODULE_CHOICES,
-         null=True,
-    blank=True,
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE
     )
+
+    object_id = models.PositiveIntegerField()
+
+    related_object = GenericForeignKey(
+        "content_type",
+        "object_id"
+    )
+
+    # ========================================
+    # MEETING DETAILS
+    # ========================================
 
     title = models.CharField(
         max_length=255
     )
 
+    # User who created the meeting
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -52,6 +62,7 @@ class Meeting(models.Model):
 
     end_time = models.TimeField()
 
+    # Meeting attendees
     attendees = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name="meeting_attendees",
@@ -69,10 +80,15 @@ class Meeting(models.Model):
         null=True
     )
 
-    note = models.TextField()
+    note = models.TextField(
+        blank=True,
+        default=""
+    )
 
-    blank=True,
-    null=True
+    # ========================================
+    # TIMESTAMPS
+    # ========================================
+
     created_at = models.DateTimeField(
         auto_now_add=True
     )

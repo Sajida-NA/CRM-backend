@@ -32,13 +32,19 @@ urlpatterns = [
     path("api/leads/",include("apps.leads.urls")),
     
     path("api/deals/",include("apps.deals.urls")),
+    path("api/tickets/",include("apps.tickets.urls")),
 
     path("api/tickets/", include("apps.tickets.urls")),
+
+     path(
+        "api/dashboard/",
+        include("apps.dashboard.urls")
+    ),
     
 # Activities
     path("api/activities/activity/", include("apps.activities.activity.urls")),
 
-    # path("api/activities/call/", include("apps.activities.call.urls")),
+    path("api/activities/call/", include("apps.activities.call.urls")),
 
     path("api/activities/email/", include("apps.activities.email.urls")),
 

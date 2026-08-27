@@ -51,18 +51,22 @@ class Task(models.Model):
         choices=PRIORITY_CHOICES
     )
 
-    note = models.TextField()
-
     # -------------------------
     # Assigned user
     # -------------------------
 
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="assigned_tasks"
-    )
+            settings.AUTH_USER_MODEL,
+            on_delete=models.SET_NULL,
+            null=True,
+            related_name="assigned_tasks"
+        )
+
+    note = models.TextField()
+
+    
+
+    
 
     # -------------------------
     # CRM module

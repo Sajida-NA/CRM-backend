@@ -1,6 +1,6 @@
 from django.db import models
+from django.conf import settings
 
-from apps.accounts.models import User
 
 
 class Ticket(models.Model):
@@ -27,19 +27,19 @@ class Ticket(models.Model):
         ("CRITICAL", "Critical"),
     ]
 
-    name = models.CharField(max_length=255)
+    ticket_name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="NEW")
+    ticket_status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="NEW")
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="WEB")
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="MEDIUM")
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tickets")
-    associated_deal = models.CharField(max_length=255, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    ticket_owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owned_tickets")
+    associated_deal = models.ForeignKey("deals.Deal",on_delete=models.CASCADE,related_name="tickets")
+    created_date = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "tickets"
-        ordering = ["-created_at"]
+        ordering = ["-created_date"]
 
     def __str__(self):
-        return self.name
+        return self.ticket_name

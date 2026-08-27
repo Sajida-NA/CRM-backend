@@ -26,24 +26,20 @@ class LeadAdmin(admin.ModelAdmin):
         "last_name",
         "email",
         "phone_number",
-        "contact_owner",
+       
         "lead_status",
-        "company_type",
-        "city",
-        "created_at",
+       
+        "created_date",
     )
 
     list_filter = (
         "lead_status",
-        "company_type",
-        "city",
-        "contact_owner",
-        "created_at",
+        "created_date",
     )
 
     search_fields = (
-        "first_name",
-        "last_name",
         "email",
         "phone_number",
+        "first_name",
+        "last_name",
     )

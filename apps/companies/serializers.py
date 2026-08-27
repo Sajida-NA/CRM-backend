@@ -1,21 +1,18 @@
-# Import Django REST Framework serializers
 from rest_framework import serializers
 
-# Import Company model
 from .models import Company
 
 
-# ---------------------------------------------------------
+# =========================================================
 # COMPANY CREATE SERIALIZER
-# ---------------------------------------------------------
+# =========================================================
 
 class CompanySerializer(serializers.ModelSerializer):
 
     class Meta:
-        # Use Company model
         model = Company
 
-        # Fields in the exact frontend form order
+        # Fields accepted when creating a company
         fields = [
             "domain_name",
             "company_name",
@@ -31,29 +28,31 @@ class CompanySerializer(serializers.ModelSerializer):
         ]
 
 
-# ---------------------------------------------------------
+# =========================================================
 # COMPANY LIST / DETAIL SERIALIZER
-# ---------------------------------------------------------
+# =========================================================
 
 class CompanyListSerializer(serializers.ModelSerializer):
 
-    # Return the owner's email
-    company_owner_name = serializers.CharField(
-        source="company_owner.email",
-        read_only=True
-    )
+    # Display the name of the user instead of the owner ID
+    company_owner = serializers.SerializerMethodField()
+
+    def get_company_owner(self, obj):
+        user = obj.company_owner
+
+        full_name = f"{user.first_name} {user.last_name}".strip()
+
+        # If first and last name are empty, show email
+        return full_name if full_name else user.email
 
     class Meta:
-        # Use Company model
         model = Company
 
-        # Return fields in frontend order
         fields = [
             "id",
             "domain_name",
             "company_name",
             "company_owner",
-            "company_owner_name",
             "industry",
             "type",
             "city",
@@ -62,19 +61,18 @@ class CompanyListSerializer(serializers.ModelSerializer):
             "annual_revenue",
             "phone_number",
             "email",
-            "created_at",
+            "created_date",
             "updated_at",
         ]
 
 
-# ---------------------------------------------------------
+# =========================================================
 # COMPANY UPDATE SERIALIZER
-# ---------------------------------------------------------
+# =========================================================
 
 class UpdateCompanySerializer(serializers.ModelSerializer):
 
     class Meta:
-        # Use Company model
         model = Company
 
         # Fields that can be updated

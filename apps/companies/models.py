@@ -82,7 +82,7 @@ class Company(models.Model):
     )
 
     # Created Date
-    created_at = models.DateTimeField(
+    created_date = models.DateTimeField(
         auto_now_add=True,
     )
 
@@ -101,4 +101,4 @@ class Company(models.Model):
 
     class Meta:
         db_table = "companies"
-        ordering = ["-created_at"]
+        ordering = ["-created_date"]

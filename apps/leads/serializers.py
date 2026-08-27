@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+3
 from .models import Lead, Product
 
 
@@ -29,15 +29,15 @@ class LeadListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
-            "phone_number",
             "email",
-            "created_at",
+            "phone_number",
+            "created_date",
             "lead_status",
         ]
 
         read_only_fields = [
             "id",
-            "created_at",
+            "created_date",
         ]
 
     def get_name(self, obj):
@@ -63,15 +63,15 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "job_title",
             "contact_owner",
             "lead_status",
-            "company_type",
-            "city",
             "products",
-            "created_at",
+            "company",
+            "city",
+            "created_date",
         ]
 
         read_only_fields = [
             "id",
-            "created_at",
+            "created_date",
         ]
 
     def create(self, validated_data):

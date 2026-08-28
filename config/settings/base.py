@@ -62,7 +62,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     'apps.companies',
     "apps.leads",
-    "apps.companies",
+   
     "apps.deals",
     "apps.tickets",
     "apps.dashboard",

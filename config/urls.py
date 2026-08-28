@@ -32,7 +32,7 @@ urlpatterns = [
     path("api/leads/",include("apps.leads.urls")),
     
     path("api/deals/",include("apps.deals.urls")),
-    path("api/tickets/",include("apps.tickets.urls")),
+   
 
     path("api/tickets/", include("apps.tickets.urls")),
 

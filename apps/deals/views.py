@@ -201,3 +201,21 @@ class DealDetailView(APIView):
             },
             status=status.HTTP_204_NO_CONTENT
         )
+class DealStageListView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        stages = [
+            {
+                "value": value,
+                "label": label,
+            }
+            for value, label in Deal.DEAL_STAGE_CHOICES
+        ]
+
+        return Response(
+            stages,
+            status=status.HTTP_200_OK
+        )

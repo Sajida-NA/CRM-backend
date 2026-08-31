@@ -34,7 +34,7 @@ class Deal(models.Model):
     # Corresponding Lead
     associated_lead = models.ForeignKey(
         Lead,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="associated_deals"
     )
 

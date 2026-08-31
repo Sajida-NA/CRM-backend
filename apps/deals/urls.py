@@ -21,7 +21,7 @@
 
 from django.urls import path
 
-from .views import DealListCreateView, DealDetailView
+from .views import DealListCreateView, DealDetailView,DealStageListView
 
 
 urlpatterns = [
@@ -32,6 +32,9 @@ urlpatterns = [
         DealListCreateView.as_view(),
         name="deals-list-create",
     ),
+
+      # GET deal stages
+    path("stages/",DealStageListView.as_view(),name="deal-stages",),
 
     # GET one deal
     # PUT update

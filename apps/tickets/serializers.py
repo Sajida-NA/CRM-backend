@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-from apps.accounts.models import User
 from .models import Ticket
 
 
@@ -33,19 +32,33 @@ class TicketSerializer(serializers.ModelSerializer):
 
 
 # =====================================================
-# TICKET LIST SERIALIZER
+# TICKET LIST / DETAIL SERIALIZER
 # =====================================================
 
 class TicketListSerializer(serializers.ModelSerializer):
 
-    # Display deal name instead of deal ID
+    # Display deal name
     deal_name = serializers.CharField(
         source="associated_deal.deal_name",
         read_only=True
     )
 
-    # Display owner's name instead of owner ID
+    # Keep owner display name for table
     ticket_owner = serializers.SerializerMethodField()
+
+    # IMPORTANT:
+    # Send owner ID also for Edit Drawer
+    ticket_owner_id = serializers.IntegerField(
+        source="ticket_owner.id",
+        read_only=True
+    )
+
+    # IMPORTANT:
+    # Send deal ID also for Edit Drawer
+    associated_deal_id = serializers.IntegerField(
+        source="associated_deal.id",
+        read_only=True
+    )
 
     class Meta:
         model = Ticket
@@ -53,21 +66,25 @@ class TicketListSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "ticket_name",
+            "description",
             "deal_name",
+            "associated_deal_id",
             "ticket_status",
             "priority",
             "source",
             "ticket_owner",
+            "ticket_owner_id",
             "created_date",
         )
 
     def get_ticket_owner(self, obj):
         user = obj.ticket_owner
 
-        # If your User model has first_name and last_name
+        if not user:
+            return ""
+
         full_name = f"{user.first_name} {user.last_name}".strip()
 
-        # Return full name, otherwise return email
         if full_name:
             return full_name
 

@@ -1,9 +1,8 @@
+
 from django.db import models
 from django.conf import settings
-from apps.activities.activity.models import Activity
 
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
+from apps.activities.activity.models import Activity
 
 
 class Meeting(models.Model):
@@ -17,28 +16,15 @@ class Meeting(models.Model):
     ]
 
     # ========================================
-    # CRM MODULE
+    # ACTIVITY
     # ========================================
 
-     # One Activity = One Meeting
     activity = models.OneToOneField(
         Activity,
         on_delete=models.CASCADE,
         related_name="meeting",
         null=True,
         blank=True,
-    )
-
-    content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.CASCADE
-    )
-
-    object_id = models.PositiveIntegerField()
-
-    related_object = GenericForeignKey(
-        "content_type",
-        "object_id"
     )
 
     # ========================================
@@ -49,7 +35,6 @@ class Meeting(models.Model):
         max_length=255
     )
 
-    # User who created the meeting
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -62,7 +47,6 @@ class Meeting(models.Model):
 
     end_time = models.TimeField()
 
-    # Meeting attendees
     attendees = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name="meeting_attendees",

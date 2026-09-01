@@ -19,9 +19,9 @@ class MeetingListCreateView(APIView):
         IsAuthenticated
     ]
 
-    # =====================================================
+    # =========================================================
     # GET ALL MEETINGS
-    # =====================================================
+    # =========================================================
 
     def get(self, request):
 
@@ -29,7 +29,8 @@ class MeetingListCreateView(APIView):
             Meeting.objects
             .select_related(
                 "owner",
-                "content_type"
+                "activity",
+                "activity__content_type",
             )
             .prefetch_related(
                 "attendees"
@@ -48,34 +49,94 @@ class MeetingListCreateView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # =====================================================
-    # POST
-    # =====================================================
+    # =========================================================
+    # POST - CREATE MEETING
+    # =========================================================
 
     def post(self, request):
 
+        print("\n=================================")
+        print("CREATE MEETING")
+        print("REQUEST DATA:", request.data)
+        print("LOGGED USER:", request.user)
+        print("LOGGED USER ID:", request.user.id)
+        print("=================================\n")
+
+        data = request.data.copy()
+
+        # Logged-in user
+        data["sender_id"] = request.user.id
+
         serializer = MeetingSerializer(
-            data=request.data
+            data=data
         )
 
-        if serializer.is_valid():
+        if not serializer.is_valid():
 
-            meeting = serializer.save()
-
-            response_serializer = (
-                MeetingResponseSerializer(
-                    meeting
-                )
-            )
+            print("\n=================================")
+            print("MEETING VALIDATION ERROR")
+            print(serializer.errors)
+            print("=================================\n")
 
             return Response(
-                response_serializer.data,
-                status=status.HTTP_201_CREATED
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
             )
 
+        meeting = serializer.save()
+
+        response_serializer = MeetingResponseSerializer(
+            meeting
+        )
+
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            response_serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+# =============================================================
+# GET MEETINGS FOR ONE DEAL
+# =============================================================
+
+class DealMeetingListView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def get(self, request, deal_id):
+
+        print("\n=================================")
+        print("FETCH DEAL MEETINGS")
+        print("DEAL ID:", deal_id)
+        print("=================================\n")
+
+        meetings = (
+            Meeting.objects
+            .select_related(
+                "owner",
+                "activity",
+                "activity__content_type",
+            )
+            .prefetch_related(
+                "attendees"
+            )
+            .filter(
+                activity__content_type__model="deal",
+                activity__object_id=deal_id,
+            )
+            .order_by("-id")
+        )
+
+        serializer = MeetingResponseSerializer(
+            meetings,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
         )
 
 
@@ -85,9 +146,9 @@ class MeetingDetailView(APIView):
         IsAuthenticated
     ]
 
-    # =====================================================
-    # GET SINGLE
-    # =====================================================
+    # =========================================================
+    # GET SINGLE MEETING
+    # =========================================================
 
     def get(self, request, pk):
 
@@ -105,9 +166,9 @@ class MeetingDetailView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # =====================================================
+    # =========================================================
     # PUT
-    # =====================================================
+    # =========================================================
 
     def put(self, request, pk):
 
@@ -116,34 +177,36 @@ class MeetingDetailView(APIView):
             pk=pk
         )
 
+        data = request.data.copy()
+
+        data["sender_id"] = request.user.id
+
         serializer = MeetingSerializer(
             meeting,
-            data=request.data
+            data=data
         )
 
-        if serializer.is_valid():
-
-            meeting = serializer.save()
-
-            response_serializer = (
-                MeetingResponseSerializer(
-                    meeting
-                )
-            )
+        if not serializer.is_valid():
 
             return Response(
-                response_serializer.data,
-                status=status.HTTP_200_OK
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+        meeting = serializer.save()
+
+        response_serializer = MeetingResponseSerializer(
+            meeting
         )
 
-    # =====================================================
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+    # =========================================================
     # PATCH
-    # =====================================================
+    # =========================================================
 
     def patch(self, request, pk):
 
@@ -152,35 +215,37 @@ class MeetingDetailView(APIView):
             pk=pk
         )
 
+        data = request.data.copy()
+
+        data["sender_id"] = request.user.id
+
         serializer = MeetingSerializer(
             meeting,
-            data=request.data,
+            data=data,
             partial=True
         )
 
-        if serializer.is_valid():
-
-            meeting = serializer.save()
-
-            response_serializer = (
-                MeetingResponseSerializer(
-                    meeting
-                )
-            )
+        if not serializer.is_valid():
 
             return Response(
-                response_serializer.data,
-                status=status.HTTP_200_OK
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+        meeting = serializer.save()
+
+        response_serializer = MeetingResponseSerializer(
+            meeting
         )
 
-    # =====================================================
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+    # =========================================================
     # DELETE
-    # =====================================================
+    # =========================================================
 
     def delete(self, request, pk):
 
@@ -197,3 +262,4 @@ class MeetingDetailView(APIView):
             },
             status=status.HTTP_200_OK
         )
+

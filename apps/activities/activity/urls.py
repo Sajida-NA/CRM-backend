@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import ActivityTimelineView,ActivityTypeDetailView
+from .views import ActivityTimelineView
 
 
 urlpatterns = [
@@ -12,11 +12,12 @@ urlpatterns = [
     ),
 
 
-    # GET activities of one type
-    path(
-        "<str:module>/<int:module_id>/<str:activity_type>/",
-        ActivityTypeDetailView.as_view(),
-        name="activity-type-detail"
-    ),
+    # # GET activities of one type
+    # path(
+    #     "<str:module>/<int:module_id>/<str:activity_type>/",
+    #     ActivityTypeDetailView.as_view(),
+    #     name="activity-type-detail"
+    # ),
 
 ]
+

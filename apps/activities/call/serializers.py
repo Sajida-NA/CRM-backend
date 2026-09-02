@@ -1,3 +1,4 @@
+
 from rest_framework import serializers
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
@@ -73,6 +74,7 @@ class CallSerializer(serializers.ModelSerializer):
             # -----------------------------------------
 
             "call_outcome",
+            "duration",
             "date",
             "time",
             "note",
@@ -230,6 +232,22 @@ class CallSerializer(serializers.ModelSerializer):
             })
 
         # =================================================
+        # VALIDATE DURATION
+        # =================================================
+
+        duration = attrs.get("duration")
+
+        if duration is not None:
+
+            if duration <= 0:
+
+                raise serializers.ValidationError({
+                    "duration": (
+                        "Duration must be greater than 0."
+                    )
+                })
+
+        # =================================================
         # SAVE NORMALIZED MODULE
         # =================================================
 
@@ -334,6 +352,7 @@ class CallSerializer(serializers.ModelSerializer):
 
         fields = [
             "call_outcome",
+            "duration",
             "date",
             "time",
             "note",
@@ -602,3 +621,4 @@ class CallSerializer(serializers.ModelSerializer):
         response.update(data)
 
         return response
+

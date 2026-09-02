@@ -1,5 +1,8 @@
+
+
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 
 from rest_framework import serializers
 
@@ -16,23 +19,23 @@ User = get_user_model()
 
 class MeetingSerializer(serializers.ModelSerializer):
 
-    # -----------------------------------------
+    # =====================================================
     # INPUT ONLY
-    # -----------------------------------------
+    # =====================================================
 
     sender_id = serializers.IntegerField(
         write_only=True,
-        required=False
+        required=True
     )
 
     module = serializers.CharField(
         write_only=True,
-        required=False
+        required=True
     )
 
     module_id = serializers.IntegerField(
         write_only=True,
-        required=False
+        required=True
     )
 
     class Meta:
@@ -76,28 +79,43 @@ class MeetingSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
 
-        # For CREATE
+        # -------------------------------------------------
+        # CREATE ONLY
+        # -------------------------------------------------
+
         if self.instance is None:
 
-            sender_id = attrs.pop("sender_id")
-            module = attrs.pop("module").lower()
-            module_id = attrs.pop("module_id")
+            sender_id = attrs.pop(
+                "sender_id"
+            )
 
-            # -----------------------------------------
-            # Validate sender
-            # -----------------------------------------
+            module = attrs.pop(
+                "module"
+            ).lower().strip()
+
+            module_id = attrs.pop(
+                "module_id"
+            )
+
+            # -------------------------------------------------
+            # VALIDATE SENDER
+            # -------------------------------------------------
 
             try:
-                sender = User.objects.get(id=sender_id)
+
+                sender = User.objects.get(
+                    id=sender_id
+                )
 
             except User.DoesNotExist:
+
                 raise serializers.ValidationError({
                     "sender_id": "Sender does not exist."
                 })
 
-            # -----------------------------------------
-            # Allowed modules
-            # -----------------------------------------
+            # -------------------------------------------------
+            # ALLOWED MODULES
+            # -------------------------------------------------
 
             MODULE_MAP = {
 
@@ -134,9 +152,9 @@ class MeetingSerializer(serializers.ModelSerializer):
 
             app_label, model_name = MODULE_MAP[module]
 
-            # -----------------------------------------
-            # Get ContentType
-            # -----------------------------------------
+            # -------------------------------------------------
+            # GET CONTENT TYPE
+            # -------------------------------------------------
 
             try:
 
@@ -153,15 +171,27 @@ class MeetingSerializer(serializers.ModelSerializer):
                     )
                 })
 
-            # -----------------------------------------
-            # Validate CRM object
-            # -----------------------------------------
+            # -------------------------------------------------
+            # GET MODEL
+            # -------------------------------------------------
 
             model_class = content_type.model_class()
 
+            if model_class is None:
+
+                raise serializers.ValidationError({
+                    "module": (
+                        f"Unable to find model for {module}."
+                    )
+                })
+
+            # -------------------------------------------------
+            # VALIDATE CRM OBJECT
+            # -------------------------------------------------
+
             try:
 
-                related_object = model_class.objects.get(
+                model_class.objects.get(
                     id=module_id
                 )
 
@@ -174,10 +204,15 @@ class MeetingSerializer(serializers.ModelSerializer):
                     )
                 })
 
-            # Store internal values
+            # -------------------------------------------------
+            # STORE INTERNAL VALUES
+            # -------------------------------------------------
+
             attrs["_sender"] = sender
-            attrs["content_type"] = content_type
-            attrs["object_id"] = module_id
+
+            attrs["_content_type"] = content_type
+
+            attrs["_object_id"] = module_id
 
         return attrs
 
@@ -185,53 +220,75 @@ class MeetingSerializer(serializers.ModelSerializer):
     # CREATE
     # =====================================================
 
+    @transaction.atomic
     def create(self, validated_data):
 
-        # Get sender
-        sender = validated_data.pop("_sender")
+        # -------------------------------------------------
+        # GET SENDER
+        # -------------------------------------------------
 
-        # Remove attendees before creating Meeting
+        sender = validated_data.pop(
+            "_sender"
+        )
+
+        # -------------------------------------------------
+        # GET ATTENDEES
+        # -------------------------------------------------
+
         attendees = validated_data.pop(
             "attendees",
             []
         )
 
-        # Get module connection
-        content_type = validated_data.get(
-            "content_type"
+        # -------------------------------------------------
+        # GET MODULE DATA
+        # -------------------------------------------------
+
+        content_type = validated_data.pop(
+            "_content_type"
         )
 
-        object_id = validated_data.get(
-            "object_id"
+        object_id = validated_data.pop(
+            "_object_id"
         )
 
-        # -----------------------------------------
+        # -------------------------------------------------
         # CREATE CENTRAL ACTIVITY
-        # -----------------------------------------
+        # -------------------------------------------------
 
         activity = Activity.objects.create(
+
             activity_type="meeting",
+
             created_by=sender,
+
             content_type=content_type,
+
             object_id=object_id
         )
 
-        # -----------------------------------------
+        # -------------------------------------------------
         # CREATE MEETING
-        # -----------------------------------------
+        # -------------------------------------------------
 
         meeting = Meeting.objects.create(
+
             activity=activity,
+
             owner=sender,
+
             **validated_data
         )
 
-        # -----------------------------------------
+        # -------------------------------------------------
         # ADD ATTENDEES
-        # -----------------------------------------
+        # -------------------------------------------------
 
         if attendees:
-            meeting.attendees.set(attendees)
+
+            meeting.attendees.set(
+                attendees
+            )
 
         return meeting
 
@@ -241,26 +298,72 @@ class MeetingSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
 
-        # Remove input-only fields if sent accidentally
-        validated_data.pop("sender_id", None)
-        validated_data.pop("module", None)
-        validated_data.pop("module_id", None)
+        # -------------------------------------------------
+        # REMOVE INPUT-ONLY FIELDS
+        # -------------------------------------------------
 
-        # Handle attendees
+        validated_data.pop(
+            "sender_id",
+            None
+        )
+
+        validated_data.pop(
+            "module",
+            None
+        )
+
+        validated_data.pop(
+            "module_id",
+            None
+        )
+
+        validated_data.pop(
+            "_sender",
+            None
+        )
+
+        validated_data.pop(
+            "_content_type",
+            None
+        )
+
+        validated_data.pop(
+            "_object_id",
+            None
+        )
+
+        # -------------------------------------------------
+        # HANDLE ATTENDEES
+        # -------------------------------------------------
+
         attendees = validated_data.pop(
             "attendees",
             None
         )
 
-        # Update normal fields
+        # -------------------------------------------------
+        # UPDATE NORMAL FIELDS
+        # -------------------------------------------------
+
         for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+
+            setattr(
+                instance,
+                attr,
+                value
+            )
 
         instance.save()
 
-        # Update attendees only if provided
+        # -------------------------------------------------
+        # UPDATE ATTENDEES
+        # -------------------------------------------------
+
         if attendees is not None:
-            instance.attendees.set(attendees)
+
+            instance.attendees.set(
+                attendees
+            )
 
         return instance
 
@@ -311,6 +414,7 @@ class MeetingResponseSerializer(
 
         return {
             "id": obj.owner.id,
+
             "name": (
                 obj.owner.get_full_name()
                 or obj.owner.email
@@ -323,41 +427,92 @@ class MeetingResponseSerializer(
 
     def get_module(self, obj):
 
-        if not obj.content_type:
+        if not obj.activity:
             return None
 
-        return obj.content_type.model
+        content_type = obj.activity.content_type
+
+        if not content_type:
+            return None
+
+        return content_type.model
 
     # =====================================================
-    # RELATED OBJECT
+    # RELATED OBJECT / LEAD
     # =====================================================
 
     def get_lead(self, obj):
 
-        related_object = obj.related_object
+        # -------------------------------------------------
+        # GET ACTIVITY
+        # -------------------------------------------------
 
-        if not related_object:
+        if not obj.activity:
             return None
 
-        model_name = obj.content_type.model
+        activity = obj.activity
 
-        # -----------------------------------------
+        # -------------------------------------------------
+        # GET CONTENT TYPE
+        # -------------------------------------------------
+
+        content_type = activity.content_type
+
+        if not content_type:
+            return None
+
+        # -------------------------------------------------
+        # GET OBJECT ID
+        # -------------------------------------------------
+
+        object_id = activity.object_id
+
+        if not object_id:
+            return None
+
+        # -------------------------------------------------
+        # GET RELATED OBJECT
+        # -------------------------------------------------
+
+        model_class = content_type.model_class()
+
+        if model_class is None:
+            return None
+
+        try:
+
+            related_object = model_class.objects.get(
+                id=object_id
+            )
+
+        except model_class.DoesNotExist:
+
+            return None
+
+        # -------------------------------------------------
+        # MODEL NAME
+        # -------------------------------------------------
+
+        model_name = content_type.model
+
+        # =================================================
         # LEAD
-        # -----------------------------------------
+        # =================================================
 
         if model_name == "lead":
 
             return {
                 "id": related_object.id,
+
                 "name": (
-                    f"{related_object.first_name} "
-                    f"{related_object.last_name}"
+                    f"{getattr(related_object, 'first_name', '')} "
+                    f"{getattr(related_object, 'last_name', '')}"
                 ).strip()
             }
 
-        # -----------------------------------------
+        # =================================================
         # DEAL
-        # -----------------------------------------
+        # =================================================
 
         if model_name == "deal":
 
@@ -371,14 +526,16 @@ class MeetingResponseSerializer(
 
                 return {
                     "id": lead.id,
+
                     "name": (
-                        f"{lead.first_name} "
-                        f"{lead.last_name}"
+                        f"{getattr(lead, 'first_name', '')} "
+                        f"{getattr(lead, 'last_name', '')}"
                     ).strip()
                 }
 
             return {
                 "id": related_object.id,
+
                 "name": getattr(
                     related_object,
                     "deal_name",
@@ -386,14 +543,15 @@ class MeetingResponseSerializer(
                 )
             }
 
-        # -----------------------------------------
+        # =================================================
         # COMPANY
-        # -----------------------------------------
+        # =================================================
 
         if model_name == "company":
 
             return {
                 "id": related_object.id,
+
                 "name": getattr(
                     related_object,
                     "name",
@@ -401,14 +559,15 @@ class MeetingResponseSerializer(
                 )
             }
 
-        # -----------------------------------------
+        # =================================================
         # TICKET
-        # -----------------------------------------
+        # =================================================
 
         if model_name == "ticket":
 
             return {
                 "id": related_object.id,
+
                 "name": getattr(
                     related_object,
                     "name",
@@ -427,10 +586,12 @@ class MeetingResponseSerializer(
         return [
             {
                 "id": user.id,
+
                 "name": (
                     user.get_full_name()
                     or user.email
                 )
             }
+
             for user in obj.attendees.all()
         ]

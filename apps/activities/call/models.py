@@ -1,3 +1,4 @@
+
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -51,6 +52,12 @@ class Call(models.Model):
         choices=CALL_OUTCOME_CHOICES
     )
 
+    # Duration stored in minutes
+    duration = models.PositiveIntegerField(
+        null=True,
+        blank=True
+    )
+
     date = models.DateField()
 
     time = models.TimeField()
@@ -59,15 +66,22 @@ class Call(models.Model):
     # Note
     # -------------------------------------------------
 
-    note = models.TextField()
+    note = models.TextField(
+        blank=True
+    )
 
     # -------------------------------------------------
     # Timestamps
     # -------------------------------------------------
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
 
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
 
     def __str__(self):
         return f"Call - {self.date} {self.time}"
+

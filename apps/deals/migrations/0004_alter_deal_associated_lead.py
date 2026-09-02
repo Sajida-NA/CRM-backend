@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('deals', '0003_rename_created_at_deal_created_date'),
-        ('leads', '0005_alter_lead_company'),
+        ('leads', '0004_remove_lead_company_type_lead_company'),
     ]
 
     operations = [

@@ -1,10 +1,10 @@
-
 from django.urls import path
 
 from .views import (
     MeetingListCreateView,
     MeetingDetailView,
     DealMeetingListView,
+    TicketMeetingListView,
 )
 
 
@@ -13,6 +13,8 @@ urlpatterns = [
     # =========================================================
     # GET ALL MEETINGS
     # POST CREATE MEETING
+    #
+    # /api/activities/meeting/
     # =========================================================
 
     path(
@@ -31,6 +33,18 @@ urlpatterns = [
         "deal/<int:deal_id>/",
         DealMeetingListView.as_view(),
         name="deal-meeting-list",
+    ),
+
+    # =========================================================
+    # GET MEETINGS FOR ONE TICKET
+    #
+    # /api/activities/meeting/ticket/5/
+    # =========================================================
+
+    path(
+        "ticket/<int:ticket_id>/",
+        TicketMeetingListView.as_view(),
+        name="ticket-meeting-list",
     ),
 
     # =========================================================

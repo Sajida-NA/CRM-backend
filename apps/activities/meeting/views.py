@@ -13,6 +13,10 @@ from .serializers import (
 )
 
 
+# =============================================================
+# GET ALL MEETINGS / CREATE MEETING
+# =============================================================
+
 class MeetingListCreateView(APIView):
 
     permission_classes = [
@@ -125,6 +129,7 @@ class DealMeetingListView(APIView):
             .filter(
                 activity__content_type__model="deal",
                 activity__object_id=deal_id,
+                activity__activity_type="meeting",
             )
             .order_by("-id")
         )
@@ -139,6 +144,56 @@ class DealMeetingListView(APIView):
             status=status.HTTP_200_OK
         )
 
+
+# =============================================================
+# GET MEETINGS FOR ONE TICKET
+# =============================================================
+
+class TicketMeetingListView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def get(self, request, ticket_id):
+
+        print("\n=================================")
+        print("FETCH TICKET MEETINGS")
+        print("TICKET ID:", ticket_id)
+        print("=================================\n")
+
+        meetings = (
+            Meeting.objects
+            .select_related(
+                "owner",
+                "activity",
+                "activity__content_type",
+            )
+            .prefetch_related(
+                "attendees"
+            )
+            .filter(
+                activity__content_type__model="ticket",
+                activity__object_id=ticket_id,
+                activity__activity_type="meeting",
+            )
+            .order_by("-id")
+        )
+
+        serializer = MeetingResponseSerializer(
+            meetings,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+
+# =============================================================
+# SINGLE MEETING
+# =============================================================
 
 class MeetingDetailView(APIView):
 
@@ -262,4 +317,3 @@ class MeetingDetailView(APIView):
             },
             status=status.HTTP_200_OK
         )
-

@@ -42,7 +42,7 @@ urlpatterns = [
     ),
     
 # Activities
-    
+    # path("api/activities/", include("apps.activities.urls")),
 
     path("api/activities/activity/", include("apps.activities.activity.urls")),
 

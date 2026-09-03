@@ -19,6 +19,9 @@ class NoteListCreateView(APIView):
 
     def get(self, request):
 
+        module = request.query_params.get("module")
+        module_id = request.query_params.get("module_id")
+
         notes = (
             Note.objects
             .select_related(
@@ -28,6 +31,16 @@ class NoteListCreateView(APIView):
             )
             .order_by("-created_at")
         )
+
+        if module:
+            notes = notes.filter(
+                activity__content_type__model=module.lower()
+            )
+
+        if module_id:
+            notes = notes.filter(
+                activity__object_id=module_id
+            )
 
         serializer = NoteSerializer(
             notes,

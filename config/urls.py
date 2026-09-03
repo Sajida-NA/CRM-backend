@@ -42,6 +42,8 @@ urlpatterns = [
     ),
     
 # Activities
+    # path("api/activities/", include("apps.activities.urls")),
+
     path("api/activities/activity/", include("apps.activities.activity.urls")),
 
     path("api/activities/call/", include("apps.activities.call.urls")),

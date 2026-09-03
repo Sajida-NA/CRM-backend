@@ -1,6 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils.html import strip_tags
 
 from rest_framework import serializers
 
@@ -50,19 +51,14 @@ class NoteSerializer(serializers.ModelSerializer):
 
         fields = [
             "id",
-
-            # Created user
             "created_by",
 
-            # Input
             "sender_id",
             "module",
             "module_id",
 
-            # Note
             "note",
 
-            # Timestamps
             "created_at",
             "updated_at",
         ]
@@ -75,6 +71,17 @@ class NoteSerializer(serializers.ModelSerializer):
         ]
 
     # =================================================
+    # CLEAN HTML
+    # =================================================
+
+    def get_plain_text(self, value):
+
+        if not value:
+            return ""
+
+        return strip_tags(value).strip()
+
+    # =================================================
     # VALIDATION
     # =================================================
 
@@ -85,11 +92,10 @@ class NoteSerializer(serializers.ModelSerializer):
         module_id = attrs.get("module_id")
 
         # =================================================
-        # SENDER VALIDATION
+        # SENDER
         # =================================================
 
         if sender_id is None:
-
             raise serializers.ValidationError({
                 "sender_id": "This field is required."
             })
@@ -110,7 +116,7 @@ class NoteSerializer(serializers.ModelSerializer):
             })
 
         # =================================================
-        # MODULE VALIDATION
+        # MODULE
         # =================================================
 
         if not module:
@@ -120,10 +126,6 @@ class NoteSerializer(serializers.ModelSerializer):
             })
 
         module = module.lower().strip()
-
-        # =================================================
-        # MODULE MAP
-        # =================================================
 
         MODULE_MAP = {
 
@@ -201,7 +203,7 @@ class NoteSerializer(serializers.ModelSerializer):
             })
 
         # =================================================
-        # CHECK MODULE OBJECT
+        # CHECK OBJECT
         # =================================================
 
         if not model_class.objects.filter(
@@ -237,7 +239,7 @@ class NoteSerializer(serializers.ModelSerializer):
             "sender"
         )
 
-        module = validated_data.pop(
+        validated_data.pop(
             "module"
         )
 
@@ -249,7 +251,6 @@ class NoteSerializer(serializers.ModelSerializer):
             "object_id"
         )
 
-        # Remove input-only fields
         validated_data.pop(
             "sender_id",
             None
@@ -292,7 +293,6 @@ class NoteSerializer(serializers.ModelSerializer):
         validated_data
     ):
 
-        # These fields cannot be changed
         validated_data.pop(
             "sender_id",
             None
@@ -323,10 +323,6 @@ class NoteSerializer(serializers.ModelSerializer):
             None
         )
 
-        # =================================================
-        # UPDATE NOTE
-        # =================================================
-
         if "note" in validated_data:
 
             instance.note = validated_data["note"]
@@ -339,29 +335,19 @@ class NoteSerializer(serializers.ModelSerializer):
     # CREATED BY
     # =================================================
 
-    def get_created_by(
-        self,
-        obj
-    ):
+    def get_created_by(self, obj):
 
         if not obj.activity:
-
             return None
 
         user = obj.activity.created_by
 
         if not user:
-
             return None
 
-        full_name = user.get_full_name()
+        name = user.get_full_name()
 
-        if full_name:
-
-            name = full_name
-
-        else:
-
+        if not name:
             name = user.email
 
         return {
@@ -370,7 +356,7 @@ class NoteSerializer(serializers.ModelSerializer):
         }
 
     # =================================================
-    # GET OBJECT NAME
+    # OBJECT NAME
     # =================================================
 
     def get_object_name(
@@ -378,10 +364,7 @@ class NoteSerializer(serializers.ModelSerializer):
         related_object
     ):
 
-        # =================================================
         # LEAD
-        # =================================================
-
         if hasattr(
             related_object,
             "first_name"
@@ -408,60 +391,37 @@ class NoteSerializer(serializers.ModelSerializer):
             ).strip()
 
             if full_name:
-
                 return full_name
 
-        # =================================================
         # DEAL
-        # =================================================
-
         if hasattr(
             related_object,
             "deal_name"
         ):
-
             return related_object.deal_name
 
-        # =================================================
         # COMPANY
-        # =================================================
-
         if hasattr(
             related_object,
             "company_name"
         ):
-
             return related_object.company_name
 
-        # =================================================
-        # COMPANY FALLBACK
-        # =================================================
-
+        # NAME FALLBACK
         if hasattr(
             related_object,
             "name"
         ):
-
             return related_object.name
 
-        # =================================================
         # TICKET
-        # =================================================
-
         if hasattr(
             related_object,
             "title"
         ):
-
             return related_object.title
 
-        # =================================================
-        # FALLBACK
-        # =================================================
-
-        return str(
-            related_object
-        )
+        return str(related_object)
 
     # =================================================
     # FINAL RESPONSE
@@ -472,45 +432,44 @@ class NoteSerializer(serializers.ModelSerializer):
         instance
     ):
 
-        # =================================================
-        # NORMAL DATA
-        # =================================================
-
         data = super().to_representation(
             instance
         )
 
         # =================================================
-        # GET ACTIVITY
+        # IMPORTANT
+        # =================================================
+        # Clean the note HTML before sending
+        # response to React.
+        # =================================================
+
+        data["note"] = self.get_plain_text(
+            instance.note
+        )
+
+        # =================================================
+        # ACTIVITY
         # =================================================
 
         activity = instance.activity
 
         if not activity:
-
             return data
-
-        # =================================================
-        # GET CONTENT TYPE
-        # =================================================
 
         content_type = activity.content_type
 
         if not content_type:
-
             return data
-
-        # =================================================
-        # GET MODULE
-        # =================================================
 
         module = content_type.model.lower()
 
         # =================================================
-        # GET ACTUAL CRM OBJECT
+        # RELATED OBJECT
         # =================================================
 
         model_class = content_type.model_class()
+
+        related_object = None
 
         if model_class:
 
@@ -523,10 +482,6 @@ class NoteSerializer(serializers.ModelSerializer):
             except model_class.DoesNotExist:
 
                 related_object = None
-
-        else:
-
-            related_object = None
 
         # =================================================
         # MODULE
@@ -552,7 +507,7 @@ class NoteSerializer(serializers.ModelSerializer):
             data[module] = None
 
         # =================================================
-        # REMOVE INPUT-ONLY FIELDS
+        # REMOVE INPUT FIELDS
         # =================================================
 
         data.pop(
@@ -566,32 +521,27 @@ class NoteSerializer(serializers.ModelSerializer):
         )
 
         # =================================================
-        # ARRANGE FINAL RESPONSE
+        # FINAL RESPONSE
         # =================================================
 
         response = {}
 
-        # ID
         response["id"] = data.pop(
             "id"
         )
 
-        # CREATED BY
         response["created_by"] = data.pop(
             "created_by"
         )
 
-        # MODULE
         response["module"] = data.pop(
             "module"
         )
 
-        # LEAD / DEAL / COMPANY / TICKET
         response[module] = data.pop(
             module
         )
 
-        # NOTE + TIMESTAMPS
         response.update(data)
 
         return response

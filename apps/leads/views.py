@@ -4,7 +4,7 @@ from django.db import models
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from apps.accounts.models import User
 
@@ -21,7 +21,7 @@ from .serializers import (
 
 class LeadListCreateView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     # GET - List all leads
     # Also supports Lead Status filtering
@@ -95,7 +95,7 @@ class LeadListCreateView(APIView):
 
 class LeadDetailView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_object(self, pk):
 

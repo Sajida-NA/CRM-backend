@@ -1,6 +1,3 @@
-
-
- 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -58,6 +55,7 @@ class MeetingSerializer(serializers.ModelSerializer):
 
         read_only_fields = [
             "id",
+            "owner",
             "created_at",
             "updated_at",
         ]
@@ -89,6 +87,7 @@ class MeetingSerializer(serializers.ModelSerializer):
 
         try:
             sender = User.objects.get(id=sender_id)
+
         except User.DoesNotExist:
             raise serializers.ValidationError({
                 "sender_id": "User does not exist."
@@ -120,6 +119,7 @@ class MeetingSerializer(serializers.ModelSerializer):
                 app_label=app_label,
                 model=model_name
             )
+
         except ContentType.DoesNotExist:
             raise serializers.ValidationError({
                 "module": (
@@ -143,7 +143,10 @@ class MeetingSerializer(serializers.ModelSerializer):
         # Check related object
         # ----------------------------------------------------
 
-        if not model_class.objects.filter(id=module_id).exists():
+        if not model_class.objects.filter(
+            id=module_id
+        ).exists():
+
             raise serializers.ValidationError({
                 "module_id": (
                     f"{module.title()} with ID "
@@ -169,14 +172,30 @@ class MeetingSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
 
+        # ----------------------------------------------------
+        # Get internal values
+        # ----------------------------------------------------
+
         sender = validated_data.pop("_sender")
         content_type = validated_data.pop("_content_type")
         object_id = validated_data.pop("_object_id")
 
+        # ----------------------------------------------------
         # Remove input-only fields
+        # ----------------------------------------------------
+
         validated_data.pop("sender_id", None)
         validated_data.pop("module", None)
         validated_data.pop("module_id", None)
+
+        # ----------------------------------------------------
+        # Remove ManyToMany field
+        # ----------------------------------------------------
+
+        attendees = validated_data.pop(
+            "attendees",
+            []
+        )
 
         # ----------------------------------------------------
         # Create central Activity
@@ -196,8 +215,17 @@ class MeetingSerializer(serializers.ModelSerializer):
         meeting = Meeting.objects.create(
             activity=activity,
             owner=sender,
+            # content_type=content_type,
+            # object_id=object_id,
             **validated_data
         )
+
+        # ----------------------------------------------------
+        # Set attendees
+        # ----------------------------------------------------
+
+        if attendees:
+            meeting.attendees.set(attendees)
 
         return meeting
 
@@ -208,12 +236,18 @@ class MeetingSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
 
+        # ----------------------------------------------------
         # Remove input-only fields
+        # ----------------------------------------------------
+
         validated_data.pop("sender_id", None)
         validated_data.pop("module", None)
         validated_data.pop("module_id", None)
 
-        # Remove internal values if present
+        # ----------------------------------------------------
+        # Remove internal values
+        # ----------------------------------------------------
+
         validated_data.pop("_sender", None)
         validated_data.pop("_content_type", None)
         validated_data.pop("_object_id", None)
@@ -256,6 +290,8 @@ class MeetingResponseSerializer(serializers.ModelSerializer):
 
     module = serializers.SerializerMethodField()
 
+    module_id = serializers.SerializerMethodField()
+
     lead = serializers.SerializerMethodField()
 
     attendees = serializers.SerializerMethodField()
@@ -267,6 +303,7 @@ class MeetingResponseSerializer(serializers.ModelSerializer):
             "id",
             "created_by",
             "module",
+            "module_id",
             "lead",
             "title",
             "start_date",
@@ -296,7 +333,11 @@ class MeetingResponseSerializer(serializers.ModelSerializer):
         )
 
         if not name:
-            name = getattr(user, "email", None)
+            name = getattr(
+                user,
+                "email",
+                None
+            )
 
         return {
             "id": user.id,
@@ -316,6 +357,13 @@ class MeetingResponseSerializer(serializers.ModelSerializer):
             return None
 
         return obj.activity.content_type.model
+
+    def get_module_id(self, obj):
+
+            if not obj.activity:
+                return None
+
+            return obj.activity.object_id
 
     # ========================================================
     # RELATED OBJECT
@@ -343,9 +391,12 @@ class MeetingResponseSerializer(serializers.ModelSerializer):
         # ----------------------------------------------------
 
         try:
-            related_object = content_type.get_object_for_this_type(
-                id=object_id
+            related_object = (
+                content_type.get_object_for_this_type(
+                    id=object_id
+                )
             )
+
         except Exception:
             return None
 
@@ -370,9 +421,12 @@ class MeetingResponseSerializer(serializers.ModelSerializer):
                 ""
             )
 
-            full_name = f"{first_name} {last_name}".strip()
+            full_name = (
+                f"{first_name} {last_name}"
+            ).strip()
 
             if not full_name:
+
                 user = getattr(
                     related_object,
                     "user",
@@ -462,9 +516,6 @@ class MeetingResponseSerializer(serializers.ModelSerializer):
                     "id": associated_lead.id,
                     "name": lead_name,
                 }
-
-            # If deal has no associated lead,
-            # return the deal itself.
 
             return {
                 "id": related_object.id,

@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
+from apps.notifications.models import Notification
+
 from .models import Meeting
 
 from .serializers import (
@@ -61,6 +63,12 @@ class MeetingListCreateView(APIView):
         if serializer.is_valid():
 
             meeting = serializer.save()
+
+            Notification.objects.create(
+               user=request.user,
+               title="New Meeting Added",
+               message=f"Meeting {meeting.title} has been created.",
+            )
 
             response_serializer = (
                 MeetingResponseSerializer(
@@ -125,6 +133,12 @@ class MeetingDetailView(APIView):
 
             meeting = serializer.save()
 
+            Notification.objects.create(
+               user=request.user,
+               title="Meeting Updated",
+               message=f"Meeting {meeting.title} has been updated.",
+            )
+
             response_serializer = (
                 MeetingResponseSerializer(
                     meeting
@@ -162,6 +176,12 @@ class MeetingDetailView(APIView):
 
             meeting = serializer.save()
 
+            Notification.objects.create(
+               user=request.user,
+               title="Meeting Updated",
+               message=f"Meeting {meeting.title} has been updated.",
+            )
+
             response_serializer = (
                 MeetingResponseSerializer(
                     meeting
@@ -189,7 +209,15 @@ class MeetingDetailView(APIView):
             pk=pk
         )
 
+        meeting_title = meeting.title
+
         meeting.delete()
+
+        Notification.objects.create(
+           user=request.user,
+           title="Meeting Deleted",
+           message=f"Meeting {meeting_title} has been deleted.",
+        )
 
         return Response(
             {

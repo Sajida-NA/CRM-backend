@@ -6,6 +6,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Company
+
+from apps.notifications.models import Notification
+
 from .serializers import (
     CompanySerializer,
     CompanyListSerializer,
@@ -27,7 +30,13 @@ class CompanyListCreateView(APIView):
         serializer = CompanySerializer(data=request.data)
 
         if serializer.is_valid():
-            serializer.save()
+            company = serializer.save()
+
+            Notification.objects.create(
+               user=request.user,
+               title="New Company Added",
+               message=f"New company {company.company_name} has been added.",
+            )
 
             return Response(
                 {
@@ -65,7 +74,13 @@ class CompanyDetailView(APIView):
         )
 
         if serializer.is_valid():
-            serializer.save()
+            company = serializer.save()
+
+            Notification.objects.create(
+               user=request.user,
+               title="Company Updated",
+               message=f"Company {company.company_name} has been updated.",
+            )
 
             return Response(
                 {
@@ -83,7 +98,15 @@ class CompanyDetailView(APIView):
     def delete(self, request, pk):
         company = get_object_or_404(Company, pk=pk)
 
+        company_name = company.company_name
+
         company.delete()
+
+        Notification.objects.create(
+           user=request.user,
+           title="Company Deleted",
+           message=f"Company {company_name} has been deleted.",
+        )
 
         return Response(
             {

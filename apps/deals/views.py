@@ -9,6 +9,8 @@ from .serializers import (
     DealListSerializer,
 )
 
+from apps.notifications.models import Notification
+
 
 class DealListCreateView(APIView):
 
@@ -43,6 +45,13 @@ class DealListCreateView(APIView):
         if serializer.is_valid():
 
             deal = serializer.save()
+
+            Notification.objects.create(
+
+                user=request.user,
+                title="New Deal Added",
+                message=f"New deal {deal.deal_name} has been added.",
+)
 
             response_serializer = DealListSerializer(
                 deal
@@ -118,7 +127,43 @@ class DealDetailView(APIView):
 
         if serializer.is_valid():
 
+            old_stage = deal.deal_stage
+
             deal = serializer.save()
+
+            if old_stage != deal.deal_stage:
+
+                if deal.deal_stage == "Closed Won":
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Won",
+                        message=f"Deal {deal.deal_name} has been marked as Closed Won.",
+                    )
+
+                elif deal.deal_stage == "Closed Lost":
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Lost",
+                        message=f"Deal {deal.deal_name} has been marked as Closed Lost.",
+                    )
+
+                else:
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Stage Changed",
+                        message=f"Deal {deal.deal_name} moved from {old_stage} to {deal.deal_stage}.",
+                    )
+
+            else:
+
+                Notification.objects.create(
+                  user=request.user,
+                  title="Deal Updated",
+                  message=f"Deal {deal.deal_name} has been updated.",
+                )
 
             response_serializer = DealListSerializer(
                 deal
@@ -161,7 +206,43 @@ class DealDetailView(APIView):
 
         if serializer.is_valid():
 
+            old_stage = deal.deal_stage
+
             deal = serializer.save()
+
+            if old_stage != deal.deal_stage:
+            
+                if deal.deal_stage == "Closed Won":
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Won",
+                        message=f"Deal {deal.deal_name} has been marked as Closed Won.",
+                    )
+
+                elif deal.deal_stage == "Closed Lost":
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Lost",
+                        message=f"Deal {deal.deal_name} has been marked as Closed Lost.",
+                    )
+
+                else:
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Stage Changed",
+                        message=f"Deal {deal.deal_name} moved from {old_stage} to {deal.deal_stage}.",
+                    )
+            
+            else:
+            
+                Notification.objects.create(
+                    user=request.user,
+                    title="Deal Updated",
+                    message=f"Deal {deal.deal_name} has been updated.",
+                )
 
             response_serializer = DealListSerializer(
                 deal
@@ -193,7 +274,15 @@ class DealDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        deal_name = deal.deal_name
+
         deal.delete()
+
+        Notification.objects.create(
+            user=request.user,
+            title="Deal Deleted",
+            message=f"Deal {deal_name} has been deleted.",
+        )
 
         return Response(
             {

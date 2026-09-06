@@ -16,6 +16,8 @@ from apps.activities.activity.models import Activity
 from apps.leads.models import Lead
 from apps.deals.models import Deal
 
+from apps.notifications.models import Notification
+
 # If these models exist in your project,
 # import them here.
 # from apps.companies.models import Company
@@ -445,6 +447,12 @@ class EmailListCreateView(APIView):
                 ]
             )
 
+            Notification.objects.create(
+                user=request.user,
+                title="Email Sent",
+                message=f"Email '{email.subject}' has been sent successfully.",
+            )
+
         except Exception as e:
 
             # ----------------------------------
@@ -463,6 +471,12 @@ class EmailListCreateView(APIView):
                     "error_message",
                     "sent_at"
                 ]
+            )
+
+            Notification.objects.create(
+                user=request.user,
+                title="Email Failed",
+                message=f"Email '{email.subject}' failed to send.",
             )
 
         # --------------------------------------
@@ -555,6 +569,12 @@ class EmailDetailView(APIView):
 
             serializer.save()
 
+            Notification.objects.create(
+               user=request.user,
+               title="Email Updated",
+               message=f"Email '{email.subject}' has been updated.",
+            )
+
             return Response(
                 EmailSerializer(email).data,
                 status=status.HTTP_200_OK
@@ -582,7 +602,15 @@ class EmailDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        email_subject = email.subject
+
         email.delete()
+
+        Notification.objects.create(
+           user=request.user,
+           title="Email Deleted",
+           message=f"Email '{email_subject}' has been deleted.",
+        )
 
         return Response(
             {

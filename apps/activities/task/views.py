@@ -6,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Task
 from .serializers import TaskSerializer
 
+from apps.notifications.models import Notification
+
 
 class TaskListCreateView(APIView):
 
@@ -46,6 +48,12 @@ class TaskListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         task = serializer.save()
+
+        Notification.objects.create(
+           user=request.user,
+           title="New Task Added",
+           message=f"Task {task.title} has been created.",
+        )
 
         return Response(
             TaskSerializer(
@@ -108,6 +116,12 @@ class TaskDetailView(APIView):
 
         task = serializer.save()
 
+        Notification.objects.create(
+           user=request.user,
+           title="Task Updated",
+           message=f"Task {task.title} has been updated.",
+        )
+
         return Response(
             TaskSerializer(
                 task,
@@ -137,6 +151,12 @@ class TaskDetailView(APIView):
 
         task = serializer.save()
 
+        Notification.objects.create(
+           user=request.user,
+           title="Task Updated",
+           message=f"Task {task.title} has been updated.",
+        )
+
         return Response(
             TaskSerializer(
                 task,
@@ -154,8 +174,16 @@ class TaskDetailView(APIView):
                 {"detail": "Task not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
+        
+        task_title = task.title
 
         task.delete()
+
+        Notification.objects.create(
+           user=request.user,
+           title="Task Deleted",
+           message=f"Task {task_title} has been deleted.",
+        )
 
         return Response(
             status=status.HTTP_204_NO_CONTENT

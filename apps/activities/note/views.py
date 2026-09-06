@@ -6,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Note
 from .serializers import NoteSerializer
 
+from apps.notifications.models import Notification
+
 
 class NoteListCreateView(APIView):
 
@@ -58,6 +60,12 @@ class NoteListCreateView(APIView):
         if serializer.is_valid():
 
             note = serializer.save()
+
+            Notification.objects.create(
+               user=request.user,
+               title="New Note Added",
+               message="A new note has been created.",
+            )
 
             response_serializer = NoteSerializer(
                 note,
@@ -170,7 +178,13 @@ class NoteDetailView(APIView):
 
         if serializer.is_valid():
 
-            serializer.save()
+            note = serializer.save()
+
+            Notification.objects.create(
+               user=request.user,
+               title="Note Updated",
+               message="The note has been updated.",
+            )
 
             response_serializer = NoteSerializer(
                 note,
@@ -221,7 +235,13 @@ class NoteDetailView(APIView):
 
         if serializer.is_valid():
 
-            serializer.save()
+            note = serializer.save()
+
+            Notification.objects.create(
+               user=request.user,
+               title="Note Updated",
+               message="The note has been updated.",
+            )
 
             response_serializer = NoteSerializer(
                 note,
@@ -262,6 +282,12 @@ class NoteDetailView(APIView):
             )
 
         note.delete()
+
+        Notification.objects.create(
+           user=request.user,
+           title="Note Deleted",
+           message="The note has been deleted.",
+        )
 
         return Response(
             {

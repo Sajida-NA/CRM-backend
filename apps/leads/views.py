@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from apps.accounts.models import User
-
+# from apps.accounts.models import User
+from apps.companies.models import Company
 from .models import Lead, Product
 from .serializers import (
     LeadListSerializer,
@@ -281,29 +281,53 @@ class ProductListView(APIView):
 # COMPANY DROPDOWN
 # =========================================================
 
+# class LeadCompanyListView(APIView):
+
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+
+#         users = User.objects.exclude(
+#             company_name__isnull=True
+#         ).exclude(
+#             company_name=""
+#         ).values(
+#             "id",
+#             "company_name"
+#         ).distinct().order_by(
+#             "company_name"
+#         )
+
+#         company_options = [
+#             {
+#                 "value": user["id"],
+#                 "label": user["company_name"],
+#             }
+#             for user in users
+#         ]
+
+#         return Response(
+#             company_options,
+#             status=status.HTTP_200_OK
+#         )
+
+
 class LeadCompanyListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
-        users = User.objects.exclude(
-            company_name__isnull=True
-        ).exclude(
-            company_name=""
-        ).values(
-            "id",
-            "company_name"
-        ).distinct().order_by(
+        companies = Company.objects.all().order_by(
             "company_name"
         )
 
         company_options = [
             {
-                "value": user["id"],
-                "label": user["company_name"],
+                "value": company.id,
+                "label": company.company_name,
             }
-            for user in users
+            for company in companies
         ]
 
         return Response(

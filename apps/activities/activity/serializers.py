@@ -1,4 +1,416 @@
+# from rest_framework import serializers
+
+# from .models import Activity
+
+
+# class ActivitySerializer(serializers.ModelSerializer):
+
+#     module = serializers.SerializerMethodField()
+
+#     module_id = serializers.IntegerField(
+#         source="object_id",
+#         read_only=True
+#     )
+
+#     created_by_name = serializers.SerializerMethodField()
+
+#     data = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Activity
+
+#         fields = [
+#             "id",
+#             "activity_type",
+#             "module",
+#             "module_id",
+#             "created_by",
+#             "created_by_name",
+#             "created_at",
+#             "updated_at",
+#             "data",
+#         ]
+
+#         read_only_fields = [
+#             "id",
+#             "created_by",
+#             "created_by_name",
+#             "created_at",
+#             "updated_at",
+#         ]
+
+#     # ==========================================
+#     # MODULE
+#     # ==========================================
+
+#     def get_module(self, obj):
+
+#         if not obj.content_type:
+#             return None
+
+#         return obj.content_type.model
+
+#     # ==========================================
+#     # CREATED BY NAME
+#     # ==========================================
+
+#     def get_created_by_name(self, obj):
+
+#         user = obj.created_by
+
+#         if not user:
+#             return None
+
+#         if hasattr(user, "get_full_name"):
+
+#             name = user.get_full_name()
+
+#             if name:
+#                 return name
+
+#         return user.email
+
+#     # ==========================================
+#     # ACTIVITY DATA
+#     # ==========================================
+
+#     def get_data(self, obj):
+
+#         # ======================================
+#         # NOTE
+#         # ======================================
+
+#         if obj.activity_type == "note":
+
+#             note = getattr(obj, "note", None)
+
+#             if not note:
+#                 return None
+
+#             return {
+#                 "id": note.id,
+#                 "note": note.note,
+#                 "created_at": note.created_at,
+#                 "updated_at": note.updated_at,
+#             }
+
+#         # ======================================
+#         # CALL
+#         # ======================================
+
+#         if obj.activity_type == "call":
+
+#             call = getattr(obj, "call", None)
+
+#             if not call:
+#                 return None
+
+#             return {
+#                 "id": call.id,
+#                 "call_outcome": call.call_outcome,
+#                 "date": call.date,
+#                 "time": call.time,
+#                 "note": call.note,
+#                 "created_at": call.created_at,
+#                 "updated_at": call.updated_at,
+#             }
+
+#         # ======================================
+#         # TASK
+#         # ======================================
+
+#         if obj.activity_type == "task":
+
+#             task = getattr(obj, "task", None)
+
+#             if not task:
+#                 return None
+
+#             return {
+#                 "id": task.id,
+#                 "task_name": task.task_name,
+#                 "due_date": task.due_date,
+#                 "time": task.time,
+#                 "task_type": task.task_type,
+#                 "priority": task.priority,
+#                 "assigned_to": (
+#                     task.assigned_to.id
+#                     if task.assigned_to
+#                     else None
+#                 ),
+#                 "note": task.note,
+#                 "created_at": task.created_at,
+#                 "updated_at": task.updated_at,
+#             }
+
+#         # ======================================
+#         # EMAIL
+#         # ======================================
+
+#         if obj.activity_type == "email":
+
+#             email = getattr(obj, "email", None)
+
+#             if not email:
+#                 return None
+
+#             return {
+#                 "id": email.id,
+#                 "to_recipients": email.to_recipients,
+#                 "cc": email.cc,
+#                 "bcc": email.bcc,
+#                 "subject": email.subject,
+#                 "body": email.body,
+#                 "status": email.status,
+#                 "sent_at": email.sent_at,
+#                 "error_message": email.error_message,
+#             }
+
+#         # ======================================
+#         # MEETING
+#         # ======================================
+
+#         if obj.activity_type == "meeting":
+
+#             meeting = getattr(obj, "meeting", None)
+
+#             if not meeting:
+#                 return None
+
+#             return {
+#                 "id": meeting.id,
+#                 "title": meeting.title,
+#                 "start_date": meeting.start_date,
+#                 "start_time": meeting.start_time,
+#                 "end_time": meeting.end_time,
+#                 "location": meeting.location,
+#                 "reminder": meeting.reminder,
+#                 "note": meeting.note,
+#                 "created_at": meeting.created_at,
+#                 "updated_at": meeting.updated_at,
+#             }
+
+#         # ======================================
+#         # UNKNOWN ACTIVITY TYPE
+#         # ======================================
+
+#         return None
+
+
+
+# from rest_framework import serializers
+
+
+# from .models import Activity
+# from django.utils.html import strip_tags
+# from html import unescape
+
+
+# class ActivitySerializer(serializers.ModelSerializer):
+
+#     module = serializers.SerializerMethodField()
+
+#     module_id = serializers.IntegerField(
+#         source="object_id",
+#         read_only=True
+#     )
+
+#     created_by_name = serializers.SerializerMethodField()
+
+#     data = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Activity
+
+#         fields = [
+#             "id",
+#             "activity_type",
+#             "module",
+#             "module_id",
+#             "created_by",
+#             "created_by_name",
+#             "created_at",
+#             "updated_at",
+#             "data",
+#         ]
+
+#         read_only_fields = [
+#             "id",
+#             "created_by",
+#             "created_by_name",
+#             "created_at",
+#             "updated_at",
+#         ]
+
+#     # =====================================================
+#     # MODULE
+#     # =====================================================
+
+#     def get_module(self, obj):
+
+#         if not obj.content_type:
+#             return None
+
+#         return obj.content_type.model
+
+#     # =====================================================
+#     # CREATED BY NAME
+#     # =====================================================
+
+#     def get_created_by_name(self, obj):
+
+#         user = obj.created_by
+
+#         if not user:
+#             return None
+
+#         name = user.get_full_name()
+
+#         if name:
+#             return name
+
+#         return user.email
+
+#     # =====================================================
+#     # CLEAN HTML
+#     # =====================================================
+
+#     def get_plain_text(self, value):
+
+#         if not value:
+#             return ""
+
+#         return strip_tags(value).strip()
+
+#     # =====================================================
+#     # ACTIVITY DATA
+#     # =====================================================
+
+#     def get_data(self, obj):
+
+#         # =================================================
+#         # NOTE
+#         # =================================================
+
+#         if obj.activity_type == "note":
+
+#             note = getattr(obj, "note", None)
+
+#             if not note:
+#                 return None
+
+#             return {
+#                 "id": note.id,
+#                 "note": self.get_plain_text(note.note),
+#                 "created_at": note.created_at,
+#                 "updated_at": note.updated_at,
+#             }
+
+#         # =================================================
+#         # CALL
+#         # =================================================
+
+#         if obj.activity_type == "call":
+
+#             call = getattr(obj, "call", None)
+
+#             if not call:
+#                 return None
+
+#             return {
+#                 "id": call.id,
+#                 "call_outcome": call.call_outcome,
+#                 "date": call.date,
+#                 "time": call.time,
+#                 "note": self.get_plain_text(call.note),
+#                 "created_at": call.created_at,
+#                 "updated_at": call.updated_at,
+#             }
+
+#         # =================================================
+#         # TASK
+#         # =================================================
+
+#         if obj.activity_type == "task":
+
+#             task = getattr(obj, "task", None)
+
+#             if not task:
+#                 return None
+
+#             return {
+#                 "id": task.id,
+#                 "task_name": task.task_name,
+#                 "due_date": task.due_date,
+#                 "time": task.time,
+#                 "task_type": task.task_type,
+#                 "priority": task.priority,
+
+#                 "assigned_to": (
+#                     task.assigned_to.id
+#                     if task.assigned_to
+#                     else None
+#                 ),
+
+#                 "note": self.get_plain_text(task.note),
+
+#                 "created_at": task.created_at,
+#                 "updated_at": task.updated_at,
+#             }
+
+#         # =================================================
+#         # EMAIL
+#         # =================================================
+
+#         if obj.activity_type == "email":
+
+#             email = getattr(obj, "email", None)
+
+#             if not email:
+#                 return None
+
+#             return {
+#                 "id": email.id,
+#                 "to_recipients": email.to_recipients,
+#                 "cc": email.cc,
+#                 "bcc": email.bcc,
+#                 "subject": email.subject,
+#                 "body": email.body,
+#                 "status": email.status,
+#                 "sent_at": email.sent_at,
+#                 "error_message": email.error_message,
+#             }
+
+#         # =================================================
+#         # MEETING
+#         # =================================================
+
+#         if obj.activity_type == "meeting":
+
+#             meeting = getattr(obj, "meeting", None)
+
+#             if not meeting:
+#                 return None
+
+#             return {
+#                 "id": meeting.id,
+#                 "title": meeting.title,
+#                 "start_date": meeting.start_date,
+#                 "start_time": meeting.start_time,
+#                 "end_time": meeting.end_time,
+#                 "location": meeting.location,
+#                 "reminder": meeting.reminder,
+#                 "note": self.get_plain_text(meeting.note),
+#                 "created_at": meeting.created_at,
+#                 "updated_at": meeting.updated_at,
+#             }
+
+#         return None
+
+
 from rest_framework import serializers
+from django.utils.html import strip_tags
+from html import unescape
 
 from .models import Activity
 
@@ -39,81 +451,235 @@ class ActivitySerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    # ==========================================
+    # MODULE
+    # ==========================================
+
     def get_module(self, obj):
 
+        if not obj.content_type:
+            return None
+
         return obj.content_type.model
+
+    # ==========================================
+    # CREATED BY NAME
+    # ==========================================
 
     def get_created_by_name(self, obj):
 
         user = obj.created_by
 
-        if hasattr(user, "get_full_name"):
-            name = user.get_full_name()
+        if not user:
+            return None
 
-            if name:
-                return name
+        name = user.get_full_name()
+
+        if name:
+            return name
 
         return user.email
 
+    # ==========================================
+    # CLEAN HTML + HTML ENTITIES
+    # ==========================================
+
+    def get_plain_text(self, value):
+
+        if not value:
+            return ""
+
+        text = strip_tags(value)
+
+        text = unescape(text)
+
+        text = text.replace("\xa0", " ")
+
+        return " ".join(text.split())
+
+    # ==========================================
+    # ACTIVITY DATA
+    # ==========================================
+
     def get_data(self, obj):
+
+        # ==========================================
+        # NOTE
+        # ==========================================
 
         if obj.activity_type == "note":
 
+            note = getattr(obj, "note", None)
+
+            if not note:
+                return None
+
             return {
-                "id": obj.note.id,
-                "content": obj.note.content,
-                "created_at": obj.note.created_at,
-                "updated_at": obj.note.updated_at,
+                "id": note.id,
+                "note": self.get_plain_text(note.note),
+                "created_at": note.created_at,
+                "updated_at": note.updated_at,
             }
+
+        # ==========================================
+        # CALL
+        # ==========================================
 
         if obj.activity_type == "call":
 
+            call = getattr(obj, "call", None)
+
+            if not call:
+                return None
+
             return {
-                "id": obj.call.id,
-                "call_outcome": obj.call.call_outcome,
-                "duration": obj.call.duration,
-                "notes": obj.call.notes,
-                "created_at": obj.call.created_at,
-                "updated_at": obj.call.updated_at,
+                "id": call.id,
+                "call_outcome": call.call_outcome,
+                "date": call.date,
+                "time": call.time,
+                "note": self.get_plain_text(call.note),
+                "created_at": call.created_at,
+                "updated_at": call.updated_at,
             }
+
+        # ==========================================
+        # TASK
+        # ==========================================
 
         if obj.activity_type == "task":
 
+            task = getattr(obj, "task", None)
+
+            if not task:
+                return None
+
             return {
-                "id": obj.task.id,
-                "title": obj.task.title,
-                "description": obj.task.description,
-                "due_date": obj.task.due_date,
-                "status": obj.task.status,
-                "priority": obj.task.priority,
-                "created_at": obj.task.created_at,
-                "updated_at": obj.task.updated_at,
+                "id": task.id,
+                "task_name": task.task_name,
+                "due_date": task.due_date,
+                "time": task.time,
+                "task_type": task.task_type,
+                "priority": task.priority,
+                "assigned_to": (
+                    task.assigned_to.id
+                    if task.assigned_to
+                    else None
+                ),
+                "note": self.get_plain_text(task.note),
+                "created_at": task.created_at,
+                "updated_at": task.updated_at,
             }
+
+        # ==========================================
+        # EMAIL
+        # ==========================================
 
         if obj.activity_type == "email":
 
+            email = getattr(obj, "email", None)
+
+            if not email:
+                return None
+
+            # --------------------------------------
+            # Sender
+            # --------------------------------------
+
+            user = obj.created_by
+
+            sender_name = None
+            sender_email = None
+
+            if user:
+
+                sender_name = (
+                    user.get_full_name()
+                    or user.email
+                )
+
+                sender_email = user.email
+
+            # --------------------------------------
+            # Recipient
+            # --------------------------------------
+
+            recipient = None
+
+            if email.to_recipients:
+
+                recipient = email.to_recipients[0]
+
+            # --------------------------------------
+            # Return email summary
+            # --------------------------------------
+            #
+            # IMPORTANT:
+            # body is intentionally NOT returned.
+            #
+            # Activity timeline only needs:
+            # subject
+            # sender
+            # recipient
+            # status
+            # date
+            # --------------------------------------
+
             return {
-                "id": obj.email.id,
-                "to_recipients": obj.email.to_recipients,
-                "cc": obj.email.cc,
-                "bcc": obj.email.bcc,
-                "subject": obj.email.subject,
-                "body": obj.email.body,
-                "status": obj.email.status,
-                "sent_at": obj.email.sent_at,
+                "id": email.id,
+
+                "subject": email.subject,
+
+                "sender_name": sender_name,
+
+                # "sender_email": sender_email,
+
+                # "recipient_name": (
+                #     recipient.get("name")
+                #     if recipient
+                #     else None
+                # ),
+
+                # "recipient_email": (
+                #     recipient.get("email")
+                #     if recipient
+                #     else None
+                # ),
+
+                # "status": email.status,
+
+                # "sent_at": email.sent_at,
+
+                "created_at": obj.created_at,
+
+                "updated_at": obj.updated_at,
             }
+
+        # ==========================================
+        # MEETING
+        # ==========================================
 
         if obj.activity_type == "meeting":
 
+            meeting = getattr(obj, "meeting", None)
+
+            if not meeting:
+                return None
+
             return {
-                "id": obj.meeting.id,
-                "title": obj.meeting.title,
-                "meeting_date": obj.meeting.meeting_date,
-                "location": obj.meeting.location,
-                "description": obj.meeting.description,
-                "reminder": obj.meeting.reminder,
-                "created_at": obj.meeting.created_at,
-                "updated_at": obj.meeting.updated_at,
+                "id": meeting.id,
+                "title": meeting.title,
+                "start_date": meeting.start_date,
+                "start_time": meeting.start_time,
+                "end_time": meeting.end_time,
+                "location": meeting.location,
+                "reminder": meeting.reminder,
+                "note": self.get_plain_text(meeting.note),
+                "created_at": meeting.created_at,
+                "updated_at": meeting.updated_at,
             }
+
+        # ==========================================
+        # UNKNOWN ACTIVITY
+        # ==========================================
 
         return None

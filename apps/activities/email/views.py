@@ -109,7 +109,7 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        module = module.lower()
+        module = module.lower().strip()
 
         allowed_modules = [
             "lead",
@@ -157,14 +157,12 @@ class EmailListCreateView(APIView):
 
         elif module == "company":
 
-            # Uncomment when your Company model exists
             from apps.companies.models import Company
 
             model = Company
 
         elif module == "ticket":
 
-            # Uncomment when your Ticket model exists
             from apps.tickets.models import Ticket
 
             model = Ticket
@@ -198,7 +196,10 @@ class EmailListCreateView(APIView):
         recipient_name = None
         recipient_email = None
 
+        # --------------------------------------
         # Lead
+        # --------------------------------------
+
         if module == "lead":
 
             recipient_name = (
@@ -208,11 +209,11 @@ class EmailListCreateView(APIView):
 
             recipient_email = related_object.email
 
+        # --------------------------------------
         # Deal
-        elif module == "deal":
+        # --------------------------------------
 
-            # Adjust these fields if your Deal model
-            # stores customer information differently.
+        elif module == "deal":
 
             lead = related_object.associated_lead
 
@@ -225,7 +226,10 @@ class EmailListCreateView(APIView):
 
                 recipient_email = lead.email
 
+        # --------------------------------------
         # Company
+        # --------------------------------------
+
         elif module == "company":
 
             recipient_name = getattr(
@@ -240,20 +244,28 @@ class EmailListCreateView(APIView):
                 None
             )
 
+        # --------------------------------------
         # Ticket
+        # --------------------------------------
+
         elif module == "ticket":
 
-            recipient_name = getattr(
+            ticket_owner = getattr(
                 related_object,
-                "name",
+                "ticket_owner",
                 None
             )
 
-            recipient_email = getattr(
-                related_object,
-                "email",
-                None
-            )
+            if ticket_owner:
+
+                recipient_name = (
+                    ticket_owner.get_full_name()
+                    or ticket_owner.email
+                )
+
+                recipient_email = (
+                    ticket_owner.email
+                )
 
         # --------------------------------------
         # Make sure recipient has email
@@ -414,13 +426,8 @@ class EmailListCreateView(APIView):
             email_message = EmailMessage(
                 subject=subject,
                 body=body,
-
-                # Your configured Gmail account
                 from_email=settings.DEFAULT_FROM_EMAIL,
-
-                # Lead / Deal / Company / Ticket email
                 to=[recipient_email],
-
                 cc=cc_emails,
                 bcc=bcc_emails
             )

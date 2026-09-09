@@ -33,6 +33,7 @@ urlpatterns = [
     path("api/leads/",include("apps.leads.urls")),
     
     path("api/deals/",include("apps.deals.urls")),
+   
 
     path("api/tickets/", include("apps.tickets.urls")),
 
@@ -43,6 +44,8 @@ urlpatterns = [
     path("api/search/", include("apps.search.urls")),
     
 # Activities
+    # path("api/activities/", include("apps.activities.urls")),
+
     path("api/activities/activity/", include("apps.activities.activity.urls")),
 
     path("api/activities/call/", include("apps.activities.call.urls")),

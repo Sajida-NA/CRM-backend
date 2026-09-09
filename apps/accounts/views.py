@@ -123,7 +123,8 @@ class TestView(APIView):
         })
 
 class UserListView(APIView):
-    permission_classes = [IsAdminGroup]
+    # permission_classes = [IsAdminGroup]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         users = User.objects.all().order_by("-id")

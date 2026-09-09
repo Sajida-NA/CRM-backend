@@ -1,32 +1,63 @@
+
+
+# from django.urls import path
+
+# from .views import (
+#     ActivityTimelineView,
+#     ActivityTypeDetailView,
+# )
+
+
+# urlpatterns = [
+
+#     # =================================================
+#     # GET ALL ACTIVITIES FOR A MODULE RECORD
+#     #
+#     # /api/activities/lead/4/
+#     # /api/activities/deal/4/
+#     # /api/activities/company/4/
+#     # /api/activities/ticket/4/
+#     # =================================================
+
+#     path(
+#         "<str:module>/<int:module_id>/",
+#         ActivityTimelineView.as_view(),
+#         name="activity-timeline",
+#     ),
+
+#     # =================================================
+#     # GET ACTIVITIES OF ONE TYPE
+#     #
+#     # /api/activities/lead/4/note/
+#     # /api/activities/lead/4/call/
+#     # /api/activities/lead/4/task/
+#     # /api/activities/lead/4/meeting/
+#     # /api/activities/lead/4/email/
+#     # =================================================
+
+#     path(
+#         "<str:module>/<int:module_id>/<str:activity_type>/",
+#         ActivityTypeDetailView.as_view(),
+#         name="activity-type-detail",
+#     ),
+# ]
+
+
 from django.urls import path
-
-from .views import (
-    ActivityListView,
-    ActivityTypeListView,
-)
-
+from .views import ActivityTimelineView,ActivityTypeDetailView
 
 urlpatterns = [
-
-    # Get ALL activities
-    #
-    # /api/activities/lead/5/
-    #
     path(
         "<str:module>/<int:module_id>/",
-        ActivityListView.as_view(),
-        name="activity-list"
+        ActivityTimelineView.as_view(),
+        name="activity-timeline"
     ),
 
-    # Get specific activity type
-    #
-    # /api/activities/lead/5/note/
-    # /api/activities/lead/5/call/
-    # /api/activities/lead/5/task/
-    #
+
+    # GET activities of one type
     path(
         "<str:module>/<int:module_id>/<str:activity_type>/",
-        ActivityTypeListView.as_view(),
-        name="activity-type-list"
+        ActivityTypeDetailView.as_view(),
+        name="activity-type-detail"
     ),
 ]

@@ -1,4 +1,6 @@
+
 from django.shortcuts import get_object_or_404
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -8,18 +10,39 @@ from .models import Ticket
 
 from apps.notifications.models import Notification
 
-from .serializers import TicketSerializer, TicketListSerializer, UpdateTicketSerializer
+from .serializers import (
+    TicketSerializer,
+    TicketListSerializer,
+    UpdateTicketSerializer,
+)
 
+
+# =====================================================
+# TICKET LIST AND CREATE
+# =====================================================
 
 class TicketListCreateView(APIView):
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        tickets = Ticket.objects.all().order_by("-id")
+
+        tickets = (
+            Ticket.objects
+            .select_related("ticket_owner", "associated_deal")
+            .all()
+            .order_by("-id")
+        )
+
         serializer = TicketListSerializer(tickets, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
 
     def post(self, request):
+
         serializer = TicketSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -33,23 +56,44 @@ class TicketListCreateView(APIView):
             return Response(
                 {
                     "message": "Ticket created successfully.",
-                    "data": serializer.data,
+                    "data": TicketListSerializer(ticket).data,
                 },
                 status=status.HTTP_201_CREATED,
             )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
+
+# =====================================================
+# TICKET DETAIL / UPDATE / DELETE
+# =====================================================
 
 class TicketDetailView(APIView):
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        ticket = get_object_or_404(Ticket, pk=pk)
+
+        ticket = get_object_or_404(
+            Ticket.objects.select_related(
+                "ticket_owner",
+                "associated_deal"
+            ),
+            pk=pk
+        )
+
         serializer = TicketListSerializer(ticket)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
 
     def put(self, request, pk):
+
         ticket = get_object_or_404(Ticket, pk=pk)
 
         old_status = ticket.ticket_status
@@ -83,9 +127,13 @@ class TicketDetailView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     def patch(self, request, pk):
+
         ticket = get_object_or_404(Ticket, pk=pk)
 
         old_status = ticket.ticket_status
@@ -123,6 +171,7 @@ class TicketDetailView(APIView):
     
 
     def delete(self, request, pk):
+
         ticket = get_object_or_404(Ticket, pk=pk)
         ticket_name = ticket.ticket_name
         ticket.delete()
@@ -134,6 +183,8 @@ class TicketDetailView(APIView):
         )
 
         return Response(
-            {"message": "Ticket deleted successfully."},
-            status=status.HTTP_200_OK,
+            {
+                "message": "Ticket deleted successfully."
+            },
+            status=status.HTTP_200_OK
         )

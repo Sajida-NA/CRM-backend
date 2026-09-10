@@ -230,7 +230,7 @@ class TaskListCreateView(APIView):
         Notification.objects.create(
            user=request.user,
            title="New Task Added",
-           message=f"Task {task.title} has been created.",
+           message=f"Task {task.task_name} has been created.",
         )
 
         return Response(
@@ -403,7 +403,7 @@ class TaskDetailView(APIView):
         Notification.objects.create(
            user=request.user,
            title="Task Updated",
-           message=f"Task {task.title} has been updated.",
+           message=f"Task {task.task_name} has been updated.",
         )
 
         return Response(
@@ -447,7 +447,7 @@ class TaskDetailView(APIView):
         Notification.objects.create(
            user=request.user,
            title="Task Updated",
-           message=f"Task {task.title} has been updated.",
+           message=f"Task {task.task_name} has been updated.",
         )
 
         return Response(
@@ -475,14 +475,14 @@ class TaskDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         
-        task_title = task.title
+        task_name = task.task_name
 
         task.delete()
 
         Notification.objects.create(
            user=request.user,
            title="Task Deleted",
-           message=f"Task {task_title} has been deleted.",
+           message=f"Task {task_name} has been deleted.",
         )
 
         return Response(

@@ -7,6 +7,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Ticket
+
+from apps.notifications.models import Notification
+
 from .serializers import (
     TicketSerializer,
     TicketListSerializer,
@@ -44,6 +47,11 @@ class TicketListCreateView(APIView):
 
         if serializer.is_valid():
             ticket = serializer.save()
+            Notification.objects.create(
+                user=request.user,
+                title="New Ticket Added",
+                message=f"New ticket {ticket.ticket_name} has been added.",
+            )
 
             return Response(
                 {
@@ -88,13 +96,28 @@ class TicketDetailView(APIView):
 
         ticket = get_object_or_404(Ticket, pk=pk)
 
-        serializer = UpdateTicketSerializer(
-            ticket,
-            data=request.data
-        )
+        old_status = ticket.ticket_status
+
+        serializer = UpdateTicketSerializer(ticket, data=request.data)
 
         if serializer.is_valid():
-            serializer.save()
+            ticket = serializer.save()
+
+            if old_status != ticket.ticket_status:
+              Notification.objects.create(
+                user=request.user,
+                title="Ticket Status Changed",
+                message=(
+                    f"Ticket {ticket.ticket_name} moved "
+                    f"from {old_status} to {ticket.ticket_status}."
+                ),
+            )
+            else:
+              Notification.objects.create(
+                user=request.user,
+                title="Ticket Updated",
+                message=f"Ticket {ticket.ticket_name} has been updated.",
+            )
 
             return Response(
                 {
@@ -113,14 +136,28 @@ class TicketDetailView(APIView):
 
         ticket = get_object_or_404(Ticket, pk=pk)
 
-        serializer = UpdateTicketSerializer(
-            ticket,
-            data=request.data,
-            partial=True
-        )
+        old_status = ticket.ticket_status
+        
+        serializer = UpdateTicketSerializer(ticket, data=request.data, partial=True)
 
         if serializer.is_valid():
-            serializer.save()
+            ticket = serializer.save()
+
+            if old_status != ticket.ticket_status:
+                Notification.objects.create(
+                    user=request.user,
+                    title="Ticket Status Changed",
+                    message=(
+                       f"Ticket {ticket.ticket_name} moved "
+                       f"from {old_status} to {ticket.ticket_status}."
+                    ),
+                )
+            else:
+                Notification.objects.create(
+                    user=request.user,
+                    title="Ticket Updated",
+                    message=f"Ticket {ticket.ticket_name} has been updated.",
+                )
 
             return Response(
                 {
@@ -130,16 +167,20 @@ class TicketDetailView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 
     def delete(self, request, pk):
 
         ticket = get_object_or_404(Ticket, pk=pk)
-
+        ticket_name = ticket.ticket_name
         ticket.delete()
+
+        Notification.objects.create(
+           user=request.user,
+           title="Ticket Deleted",
+           message=f"Ticket {ticket_name} has been deleted.",
+        )
 
         return Response(
             {

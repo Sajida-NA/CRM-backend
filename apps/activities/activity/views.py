@@ -86,6 +86,8 @@ class ActivityTimelineView(APIView):
 
 from apps.activities.call.serializers import CallSerializer
 
+from apps.activities.call.models import Call
+
 
 # =====================================================
 # MODULE → CONTENT TYPE
@@ -116,7 +118,10 @@ def get_content_type(module):
 
 
 # =====================================================
-# GET ALL ACTIVITIES
+# GET ALL ACTIVITIES FOR A MODULE RECORD
+#
+# GET /api/activities/lead/4/
+# GET /api/activities/deal/4/
 # =====================================================
 
 class ActivityTimelineView(APIView):
@@ -142,10 +147,7 @@ class ActivityTimelineView(APIView):
                 content_type=content_type,
                 object_id=module_id
             )
-            .select_related(
-                "created_by",
-                "content_type"
-            )
+            .select_related("created_by", "content_type")
             .order_by("-created_at")
         )
 
@@ -160,7 +162,8 @@ class ActivityTimelineView(APIView):
 # =====================================================
 # GET ACTIVITIES OF ONE TYPE
 #
-# /api/activities/activity/lead/5/call/
+# GET /api/activities/lead/4/note/
+# GET /api/activities/deal/4/meeting/
 # =====================================================
 
 class ActivityTypeDetailView(APIView):

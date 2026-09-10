@@ -1,9 +1,12 @@
 from django.shortcuts import render
 
 # Create your views here.
+from django.db.models import Count, Sum
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+
+from apps.deals.models import Deal
 
 from .services import (
     get_dashboard_summary,
@@ -53,7 +56,10 @@ class SalesReportView(APIView):
 
     def get(self, request):
 
-        data = get_sales_report()
+        period = request.query_params.get("period", "Monthly")
+
+
+        data = get_sales_report(period)
 
         serializer = SalesReportSerializer(
             data,
@@ -77,3 +83,5 @@ class TeamPerformanceView(APIView):
         )
 
         return Response(serializer.data)
+
+       

@@ -6,6 +6,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
+
+from apps.notifications.models import Notification
+
 from apps.accounts.models import User
 
 from .models import Lead, Product
@@ -74,9 +77,14 @@ class LeadListCreateView(APIView):
 
             lead = serializer.save()
 
-            response_serializer = LeadListSerializer(
-                lead
+            Notification.objects.create(
+               user=request.user,
+               title="New Lead Added",
+               message=f"New lead {lead.first_name} has been added.",
             )
+
+            # Return the lead using the list serializer
+            response_serializer = LeadListSerializer(lead)
 
             return Response(
                 response_serializer.data,
@@ -151,11 +159,27 @@ class LeadDetailView(APIView):
 
         if serializer.is_valid():
 
-            updated_lead = serializer.save()
+            old_status = lead.lead_status
 
-            response_serializer = LeadListSerializer(
-                updated_lead
-            )
+            lead = serializer.save()
+
+            if old_status != lead.lead_status:
+
+                Notification.objects.create(
+                  user=request.user,
+                  title="Lead Status Changed",
+                  message=f"Lead {lead.first_name} moved from {old_status} to {lead.lead_status}.",
+                )
+
+            else:
+
+                Notification.objects.create(
+                  user=request.user,
+                  title="Lead Updated",
+                  message=f"Lead {lead.first_name} has been updated.",
+                )
+
+            response_serializer = LeadListSerializer(lead)
 
             return Response(
                 response_serializer.data,
@@ -189,11 +213,27 @@ class LeadDetailView(APIView):
 
         if serializer.is_valid():
 
-            updated_lead = serializer.save()
+            old_status = lead.lead_status
 
-            response_serializer = LeadListSerializer(
-                updated_lead
-            )
+            lead = serializer.save()
+
+            if old_status != lead.lead_status:
+            
+                Notification.objects.create(
+                    user=request.user,
+                    title="Lead Status Changed",
+                    message=f"Lead {lead.first_name} moved from {old_status} to {lead.lead_status}.",
+                )
+            
+            else:
+            
+                Notification.objects.create(
+                    user=request.user,
+                    title="Lead Updated",
+                    message=f"Lead {lead.first_name} has been updated.",
+                )
+
+            response_serializer = LeadListSerializer(lead)
 
             return Response(
                 response_serializer.data,
@@ -219,7 +259,15 @@ class LeadDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        lead_name = lead.first_name
+
         lead.delete()
+
+        Notification.objects.create(
+            user=request.user,
+            title="Lead Deleted",
+            message=f"Lead {lead_name} has been deleted.",
+        )
 
         return Response(
             {"detail": "Lead deleted successfully"},

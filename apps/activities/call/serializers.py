@@ -7,6 +7,7 @@ from rest_framework import serializers
 
 from apps.activities.activity.models import Activity
 from .models import Call
+from django.contrib.auth import get_user_model
 
 
 class CallSerializer(serializers.ModelSerializer):
@@ -30,7 +31,10 @@ class CallSerializer(serializers.ModelSerializer):
             "module_id",
             "sender_id",
 
-            # Call fields
+            # -----------------------------------------
+            # Call Details
+            # -----------------------------------------
+
             "call_outcome",
             "duration",
             "date",
@@ -51,73 +55,164 @@ class CallSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    # =================================================
+    # VALIDATION
+    # =================================================
+
     def validate(self, attrs):
-        module = attrs.get("module", "").strip().lower()
-        module_id = attrs.get("module_id")
-        sender_id = attrs.get("sender_id")
 
-        allowed_modules = [
-            "lead",
-            "company",
-            "deal",
-            "ticket",
-        ]
+        module = attrs.get("module")
 
-        if module not in allowed_modules:
+        module_id = attrs.get(
+            "module_id"
+        )
+
+        sender_id = attrs.get(
+            "sender_id"
+        )
+
+        # =================================================
+        # CHECK MODULE
+        # =================================================
+
+        if not module:
+
             raise serializers.ValidationError({
-                "module": (
-                    "Invalid module. "
-                    "Allowed values: lead, company, deal, ticket."
-                )
+                "module": "Module is required."
             })
 
-        if not module_id:
+        # =================================================
+        # CHECK MODULE ID
+        # =================================================
+
+        if module_id is None:
+
             raise serializers.ValidationError({
                 "module_id": "Module ID is required."
             })
 
-        if not sender_id:
+        # =================================================
+        # CHECK SENDER ID
+        # =================================================
+
+        if sender_id is None:
+
             raise serializers.ValidationError({
                 "sender_id": "Sender ID is required."
             })
 
-        try:
-            content_type = ContentType.objects.get(model=module)
-        except ContentType.DoesNotExist:
-            raise serializers.ValidationError({
-                "module": f"Content type for '{module}' does not exist."
-            })
+        # =================================================
+        # NORMALIZE MODULE
+        # =================================================
 
-        model_class = content_type.model_class()
+        module = module.lower().strip()
 
-        if not model_class:
-            raise serializers.ValidationError({
-                "module": f"Model for '{module}' could not be found."
-            })
+        # =================================================
+        # ALLOWED MODULES
+        # =================================================
 
-        if not model_class.objects.filter(id=module_id).exists():
+        allowed_modules = [
+            "lead",
+            "deal",
+            "company",
+            "ticket",
+        ]
+
+        if module not in allowed_modules:
+
             raise serializers.ValidationError({
-                "module_id": (
-                    f"{module.title()} with ID {module_id} does not exist."
+                "module": (
+                    "Invalid module. "
+                    "Allowed modules are: "
+                    "lead, deal, company, ticket."
                 )
             })
 
-        # Check sender
-        from django.contrib.auth import get_user_model
+        # =================================================
+        # GET CONTENT TYPE
+        # =================================================
 
+        try:
+
+            content_type = ContentType.objects.get(
+                model=module
+            )
+
+        except ContentType.DoesNotExist:
+
+            raise serializers.ValidationError({
+                "module": (
+                    f"Model '{module}' "
+                    "does not exist."
+                )
+            })
+
+        # =================================================
+        # GET MODEL CLASS
+        # =================================================
+
+        model_class = content_type.model_class()
+
+        if model_class is None:
+
+            raise serializers.ValidationError({
+                "module": (
+                    f"Could not find model "
+                    f"for '{module}'."
+                )
+            })
+
+        # =================================================
+        # CHECK CRM OBJECT EXISTS
+        # =================================================
+
+        if not model_class.objects.filter(
+            pk=module_id
+        ).exists():
+
+            raise serializers.ValidationError({
+                "module_id": (
+                    f"{module} with id "
+                    f"{module_id} does not exist."
+                )
+            })
+
+        # =================================================
+        # CHECK USER EXISTS
+        # =================================================
+        
         User = get_user_model()
 
-        if not User.objects.filter(id=sender_id).exists():
+        if not User.objects.filter(
+            pk=sender_id
+        ).exists():
+
             raise serializers.ValidationError({
-                "sender_id": "User does not exist."
+                "sender_id": (
+                    f"User with id "
+                    f"{sender_id} does not exist."
+                )
             })
+
+        # =================================================
+        # VALIDATE DURATION
+        # =================================================
 
         duration = attrs.get("duration")
 
-        if duration is not None and duration <= 0:
-            raise serializers.ValidationError({
-                "duration": "Duration must be greater than 0."
-            })
+        if duration is not None:
+
+            if duration <= 0:
+
+                raise serializers.ValidationError({
+                    "duration": (
+                        "Duration must be greater than 0."
+                    )
+                })
+
+        # =================================================
+        # SAVE NORMALIZED MODULE
+        # =================================================
 
         attrs["module"] = module
 

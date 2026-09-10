@@ -1,8 +1,5 @@
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from rest_framework.permissions import IsAuthenticated
 
+<<<<<<< HEAD
 # from .models import Deal
 # from .serializers import (
 #     DealCreateSerializer,
@@ -242,6 +239,8 @@
 #             stages,
 #             status=status.HTTP_200_OK
 #         )
+=======
+>>>>>>> 692f199c00b4ec3a70f683e7c4b1a9492e0e64ba
 
 from rest_framework.views import APIView 
 from rest_framework.response import Response 

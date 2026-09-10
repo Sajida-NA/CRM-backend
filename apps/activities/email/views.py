@@ -1,3 +1,5 @@
+
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,6 +17,8 @@ from .serializers import EmailSerializer
 from apps.activities.activity.models import Activity
 from apps.leads.models import Lead
 from apps.deals.models import Deal
+from apps.companies.models import Company
+from apps.tickets.models import Ticket
 
 from apps.notifications.models import Notification
 
@@ -25,6 +29,88 @@ from apps.notifications.models import Notification
 
 
 User = get_user_model()
+
+# =====================================================
+# GET RECIPIENT DETAILS
+# =====================================================
+
+def get_recipient_details(module, object_id):
+
+    module = module.lower().strip()
+
+    # =================================================
+    # LEAD
+    # =================================================
+
+    if module == "lead":
+
+        lead = Lead.objects.get(pk=object_id)
+
+        return {
+            "id": lead.id,
+            "name": (
+                f"{lead.first_name} {lead.last_name}"
+            ).strip(),
+            "email": lead.email,
+        }
+
+    # =================================================
+    # COMPANY
+    # =================================================
+
+    elif module == "company":
+
+        company = Company.objects.get(pk=object_id)
+
+        return {
+            "id": company.id,
+            "name": company.company_name,
+            "email": company.email,
+        }
+
+    # =================================================
+    # DEAL
+    # =================================================
+
+    elif module == "deal":
+
+        deal = Deal.objects.select_related(
+            "associated_lead"
+        ).get(pk=object_id)
+
+        lead = deal.associated_lead
+
+        return {
+            "id": deal.id,
+            "name": (
+                f"{lead.first_name} {lead.last_name}"
+            ).strip(),
+            "email": lead.email,
+        }
+
+    # =================================================
+    # TICKET
+    # =================================================
+
+    elif module == "ticket":
+
+        ticket = Ticket.objects.select_related(
+            "associated_deal__associated_lead"
+        ).get(pk=object_id)
+
+        lead = (
+            ticket.associated_deal.associated_lead
+        )
+
+        return {
+            "id": ticket.id,
+            "name": (
+                f"{lead.first_name} {lead.last_name}"
+            ).strip(),
+            "email": lead.email,
+        }
+
+    raise ValueError("Invalid module")
 
 
 class EmailListCreateView(APIView):
@@ -625,3 +711,66 @@ class EmailDetailView(APIView):
             },
             status=status.HTTP_204_NO_CONTENT
         )
+
+
+class EmailRecipientView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, module, object_id):
+
+        module = module.lower().strip()
+
+        allowed_modules = [
+            "lead",
+            "deal",
+            "company",
+            "ticket",
+        ]
+
+        if module not in allowed_modules:
+
+            return Response(
+                {
+                    "error": "Invalid module."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+
+            recipient = get_recipient_details(
+                module,
+                object_id
+            )
+
+            return Response(
+                recipient,
+                status=status.HTTP_200_OK
+            )
+
+        except (
+            Lead.DoesNotExist,
+            Company.DoesNotExist,
+            Deal.DoesNotExist,
+            Ticket.DoesNotExist,
+        ):
+
+            return Response(
+                {
+                    "error": (
+                        f"{module} with id "
+                        f"{object_id} not found."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except ValueError as error:
+
+            return Response(
+                {
+                    "error": str(error)
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )

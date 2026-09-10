@@ -1,6 +1,3 @@
-
-
-
 from django.shortcuts import get_object_or_404
 
 from rest_framework.views import APIView
@@ -165,23 +162,6 @@ class DealMeetingListView(APIView):
         print("FETCH DEAL MEETINGS")
         print("DEAL ID:", deal_id)
         print("=================================\n")
-
-        # meetings = (
-        #     Meeting.objects
-        #     .select_related(
-        #         "owner",
-        #         "activity",
-        #         "activity__content_type",
-        #     )
-        #     .prefetch_related(
-        #         "attendees"
-        #     )
-        #     .filter(
-        #         activity__content_type__model="deal",
-        #         activity__object_id=deal_id,
-        #     )
-        #     .order_by("-id")
-        # )
 
         meetings = (
             Meeting.objects

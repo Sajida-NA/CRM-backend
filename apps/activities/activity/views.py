@@ -1,6 +1,5 @@
 
 
-
 from rest_framework.views import APIView 
 from rest_framework.response import Response 
 from rest_framework.permissions import IsAuthenticated 
@@ -83,22 +82,7 @@ class ActivityTimelineView(APIView):
         return Response(serializer.data) 
  
  
-# ===================================================== 
-# GET ACTIVITIES OF ONE TYPE 
-# 
-# GET /api/activities/lead/4/note/ 
-# GET /api/activities/deal/4/meeting/ 
-# ===================================================== 
- 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
 
-from django.contrib.contenttypes.models import ContentType
-
-from .models import Activity
-from .serializers import ActivitySerializer
 
 from apps.activities.call.serializers import CallSerializer
 

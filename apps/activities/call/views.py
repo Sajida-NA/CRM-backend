@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
+from apps.notifications.models import Notification
+
 from .models import Call
 from .serializers import CallSerializer
 
@@ -59,6 +61,12 @@ class CallListCreateView(APIView):
         if serializer.is_valid():
 
             call = serializer.save()
+
+            Notification.objects.create(
+               user=request.user,
+               title="New Call Added",
+               message=f"New call has been added for {call.date} at {call.time}.",
+            )
 
             response_serializer = CallSerializer(
                 call,
@@ -167,7 +175,13 @@ class CallDetailView(APIView):
 
         if serializer.is_valid():
 
-            serializer.save()
+            call = serializer.save()
+
+            Notification.objects.create(
+                user=request.user,
+                title="Call Updated",
+                message=f"Call on {call.date} at {call.time} has been updated.",
+             )
 
             response_serializer = CallSerializer(
                 call,
@@ -218,7 +232,15 @@ class CallDetailView(APIView):
 
         if serializer.is_valid():
 
-            serializer.save()
+        
+
+            call = serializer.save()
+
+            Notification.objects.create(
+              user=request.user,
+              title="Call Updated",
+              message=f"Call on {call.date} at {call.time} has been updated.",
+            )
 
             response_serializer = CallSerializer(
                 call,
@@ -257,6 +279,15 @@ class CallDetailView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
+
+        call_date = call.date
+        call_time = call.time
+
+        Notification.objects.create(
+           user=request.user,
+           title="Call Deleted",
+           message=f"Call scheduled for {call_date} at {call_time} has been deleted.",
+)
 
         call.delete()
 

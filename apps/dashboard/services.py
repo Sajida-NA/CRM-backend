@@ -1,5 +1,5 @@
 from django.db.models import Count, Q, Sum, Value, DecimalField
-from django.db.models.functions import TruncMonth,Coalesce
+from django.db.models.functions import TruncMonth,TruncQuarter, TruncYear,Coalesce
 from django.utils import timezone
 
 from django.contrib.auth import get_user_model
@@ -47,6 +47,7 @@ def get_dashboard_summary():
         deal_stage="Closed Won",
         close_date__year=today.year,
         close_date__month=today.month,
+        close_date__lte=today,
     ).aggregate(
         total=Sum("amount")
     )["total"] or 0
@@ -165,58 +166,110 @@ def get_conversion_data():
     }
 
 
-def get_sales_report():
+def get_sales_report(period="Monthly"):
 
     today = timezone.localdate()
 
-    monthly_sales = (
-        Deal.objects
-        .filter(
-            deal_stage="Closed Won",
-            close_date__year=today.year,
-        )
-        .annotate(
-            month=TruncMonth("close_date")
-        )
-        .values("month")
-        .annotate(
-            revenue=Sum("amount")
-        )
-        .order_by("month")
+    deals = Deal.objects.filter(
+        deal_stage="Closed Won"
     )
 
-    sales_by_month = {
-        item["month"].month: item["revenue"]
-        for item in monthly_sales
-    }
+    # =========================
+    # MONTHLY
+    # =========================
 
-    months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-    ]
+    if period == "Monthly":
 
-    report = []
+        deals = deals.filter(
+            close_date__year=today.year
+        ).annotate(
+            period=TruncMonth("close_date")
+        )
 
-    for month_number, month_name in enumerate(months, start=1):
+        sales = (
+            deals
+            .values("period")
+            .annotate(revenue=Sum("amount"))
+            .order_by("period")
+        )
 
-        revenue = sales_by_month.get(month_number, 0)
+        sales_by_month = {
+            item["period"].month: item["revenue"]
+            for item in sales
+        }
 
-        report.append({
-            "month": month_name,
-            "revenue": revenue,
-        })
+        months = [
+            "Jan", "Feb", "Mar", "Apr",
+            "May", "Jun", "Jul", "Aug",
+            "Sep", "Oct", "Nov", "Dec"
+        ]
 
-    return report
+        return [
+            {
+                "month": month_name,
+                "revenue": sales_by_month.get(month_number, 0),
+            }
+            for month_number, month_name in enumerate(months, start=1)
+        ]
+    
+    # =========================
+    # QUARTERLY
+    # =========================
+
+    elif period == "Quarterly":
+
+        deals = deals.filter(
+            close_date__year=today.year
+        ).annotate(
+            period=TruncQuarter("close_date")
+        )
+
+        sales = (
+            deals
+            .values("period")
+            .annotate(revenue=Sum("amount"))
+            .order_by("period")
+        )
+
+        sales_by_quarter = {
+            item["period"].quarter: item["revenue"]
+            for item in sales
+        }
+
+        return [
+            {
+                "month": f"Q{quarter}",
+                "revenue": sales_by_quarter.get(quarter, 0),
+            }
+            for quarter in range(1, 5)
+        ]
+
+    # =========================
+    # YEARLY
+    # =========================
+
+    elif period == "Yearly":
+
+        deals = deals.annotate(
+            period=TruncYear("close_date")
+        )
+
+        sales = (
+            deals
+            .values("period")
+            .annotate(revenue=Sum("amount"))
+            .order_by("period")
+        )
+
+        return [
+            {
+                "month": item["period"].year,
+                "revenue": item["revenue"],
+            }
+            for item in sales
+        ]
+
+    return []
 
 
 def get_team_performance():

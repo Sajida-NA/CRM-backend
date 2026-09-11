@@ -1,5 +1,6 @@
 
 
+
 from django.urls import path 
  
 from .views import ActivityTimelineView,ActivityTypeDetailView 
@@ -21,6 +22,4 @@ urlpatterns = [
         name="activity-type-detail" 
     ), 
  
-] 
-
-
+]

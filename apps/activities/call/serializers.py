@@ -1,135 +1,268 @@
 
-
-
-# from django.db import transaction
+# from django.contrib.auth import get_user_model
 # from django.contrib.contenttypes.models import ContentType
+# from django.db import transaction
+
 # from rest_framework import serializers
 
-# from apps.activities.activity.models import Activity
 # from .models import Call
+# from ..activity.models import Activity
+
+
+# User = get_user_model()
+
+
+# # ============================================================
+# # MODULE → CONTENT TYPE MAP
+# # ============================================================
+
+# MODULE_MAP = {
+#     "lead": ("leads", "lead"),
+#     "company": ("companies", "company"),
+#     "deal": ("deals", "deal"),
+#     "ticket": ("tickets", "ticket"),
+# }
 
 
 # class CallSerializer(serializers.ModelSerializer):
-#     module = serializers.CharField(write_only=True)
-#     module_id = serializers.IntegerField(write_only=True)
-#     sender_id = serializers.IntegerField(write_only=True)
 
-#     created_by = serializers.SerializerMethodField(read_only=True)
+#     # ========================================================
+#     # INPUT FIELDS
+#     # ========================================================
 
-#     # This will contain the connected record information
-#     connected = serializers.SerializerMethodField(read_only=True)
+#     module = serializers.CharField(
+#         write_only=True,
+#         required=False,
+#     )
+
+#     module_id = serializers.IntegerField(
+#         write_only=True,
+#         required=False,
+#     )
+
+#     sender_id = serializers.IntegerField(
+#         write_only=True,
+#         required=False,
+#     )
+
+#     # ========================================================
+#     # OUTPUT FIELDS
+#     # ========================================================
+
+#     created_by = serializers.SerializerMethodField(
+#         read_only=True,
+#     )
+
+#     connected = serializers.SerializerMethodField(
+#         read_only=True,
+#     )
+
+#     # ========================================================
+#     # META
+#     # ========================================================
 
 #     class Meta:
 #         model = Call
+
 #         fields = [
 #             "id",
 #             "created_by",
 
-#             # Write fields
+#             # Activity connection
 #             "module",
 #             "module_id",
 #             "sender_id",
 
-#             # Call fields
+#             # Call information
 #             "call_outcome",
+
+#             # Twilio information
+#             "twilio_call_sid",
+#             "twilio_status",
 #             "duration",
+
 #             "date",
 #             "time",
 #             "note",
 
-#             # Connected record
+#             # Connected CRM record
 #             "connected",
 
 #             "created_at",
 #             "updated_at",
 #         ]
+
 #         read_only_fields = [
 #             "id",
 #             "created_by",
 #             "connected",
+
+#             # These are controlled by Twilio/backend
+#             "twilio_call_sid",
+#             "twilio_status",
+#             "duration",
+
 #             "created_at",
 #             "updated_at",
 #         ]
 
+#     # ========================================================
+#     # VALIDATION
+#     # ========================================================
+
 #     def validate(self, attrs):
-#         module = attrs.get("module", "").strip().lower()
-#         module_id = attrs.get("module_id")
-#         sender_id = attrs.get("sender_id")
 
-#         allowed_modules = [
-#             "lead",
-#             "company",
-#             "deal",
-#             "ticket",
-#         ]
+#         # ----------------------------------------------------
+#         # Module
+#         # ----------------------------------------------------
 
-#         if module not in allowed_modules:
+#         module = attrs.get("module")
+
+#         if not module:
+#             raise serializers.ValidationError({
+#                 "module": "Module is required."
+#             })
+
+#         module = module.strip().lower()
+#         attrs["module"] = module
+
+#         # ----------------------------------------------------
+#         # Validate module name
+#         # ----------------------------------------------------
+
+#         if module not in MODULE_MAP:
 #             raise serializers.ValidationError({
 #                 "module": (
-#                     "Invalid module. "
-#                     "Allowed values: lead, company, deal, ticket."
+#                     "Invalid module. Allowed values: "
+#                     "lead, company, deal, ticket."
 #                 )
 #             })
+
+#         # ----------------------------------------------------
+#         # Module ID
+#         # ----------------------------------------------------
+
+#         module_id = attrs.get("module_id")
 
 #         if not module_id:
 #             raise serializers.ValidationError({
 #                 "module_id": "Module ID is required."
 #             })
 
-#         if not sender_id:
-#             raise serializers.ValidationError({
-#                 "sender_id": "Sender ID is required."
-#             })
+#         # ----------------------------------------------------
+#         # Get ContentType
+#         # ----------------------------------------------------
+
+#         app_label, model_name = MODULE_MAP[module]
 
 #         try:
-#             content_type = ContentType.objects.get(model=module)
+#             content_type = ContentType.objects.get(
+#                 app_label=app_label,
+#                 model=model_name,
+#             )
 #         except ContentType.DoesNotExist:
 #             raise serializers.ValidationError({
-#                 "module": f"Content type for '{module}' does not exist."
+#                 "module": (
+#                     f"Content type for '{module}' "
+#                     "does not exist."
+#                 )
 #             })
+
+#         # ----------------------------------------------------
+#         # Get actual model class
+#         # ----------------------------------------------------
 
 #         model_class = content_type.model_class()
 
 #         if not model_class:
 #             raise serializers.ValidationError({
-#                 "module": f"Model for '{module}' could not be found."
-#             })
-
-#         if not model_class.objects.filter(id=module_id).exists():
-#             raise serializers.ValidationError({
-#                 "module_id": (
-#                     f"{module.title()} with ID {module_id} does not exist."
+#                 "module": (
+#                     f"Model for '{module}' "
+#                     "could not be found."
 #                 )
 #             })
 
-#         # Check sender
-#         from django.contrib.auth import get_user_model
+#         # ----------------------------------------------------
+#         # Validate CRM record exists
+#         # ----------------------------------------------------
 
-#         User = get_user_model()
+#         if not model_class.objects.filter(
+#             pk=module_id
+#         ).exists():
 
-#         if not User.objects.filter(id=sender_id).exists():
 #             raise serializers.ValidationError({
-#                 "sender_id": "User does not exist."
+#                 "module_id": (
+#                     f"{module.title()} with ID "
+#                     f"{module_id} does not exist."
+#                 )
 #             })
+
+#         # ----------------------------------------------------
+#         # Sender
+#         # ----------------------------------------------------
+
+#         sender_id = attrs.get("sender_id")
+
+#         if not sender_id:
+#             raise serializers.ValidationError({
+#                 "sender_id": "Sender ID is required."
+#             })
+
+#         if not User.objects.filter(
+#             pk=sender_id
+#         ).exists():
+
+#             raise serializers.ValidationError({
+#                 "sender_id": (
+#                     f"User with id {sender_id} "
+#                     "does not exist."
+#                 )
+#             })
+
+#         # ----------------------------------------------------
+#         # Duration
+#         # ----------------------------------------------------
 
 #         duration = attrs.get("duration")
 
-#         if duration is not None and duration <= 0:
+#         if duration is not None and duration < 0:
 #             raise serializers.ValidationError({
-#                 "duration": "Duration must be greater than 0."
+#                 "duration": (
+#                     "Duration cannot be negative."
+#                 )
 #             })
-
-#         attrs["module"] = module
 
 #         return attrs
 
+#     # ========================================================
+#     # CREATE
+#     # ========================================================
+
 #     @transaction.atomic
 #     def create(self, validated_data):
+
+#         # ----------------------------------------------------
+#         # Remove activity-related fields
+#         # ----------------------------------------------------
+
 #         module = validated_data.pop("module")
 #         module_id = validated_data.pop("module_id")
 #         sender_id = validated_data.pop("sender_id")
 
-#         content_type = ContentType.objects.get(model=module)
+#         # ----------------------------------------------------
+#         # Get ContentType
+#         # ----------------------------------------------------
+
+#         app_label, model_name = MODULE_MAP[module]
+
+#         content_type = ContentType.objects.get(
+#             app_label=app_label,
+#             model=model_name,
+#         )
+
+#         # ----------------------------------------------------
+#         # Create Activity
+#         # ----------------------------------------------------
 
 #         activity = Activity.objects.create(
 #             activity_type="call",
@@ -137,6 +270,10 @@
 #             content_type=content_type,
 #             object_id=module_id,
 #         )
+
+#         # ----------------------------------------------------
+#         # Create Call
+#         # ----------------------------------------------------
 
 #         call = Call.objects.create(
 #             activity=activity,
@@ -147,15 +284,34 @@
 
 #         return call
 
+#     # ========================================================
+#     # UPDATE
+#     # ========================================================
+
 #     def update(self, instance, validated_data):
-#         # module/module_id/sender_id cannot be changed
+
+#         # ----------------------------------------------------
+#         # Activity connection must not be changed
+#         # ----------------------------------------------------
+
 #         validated_data.pop("module", None)
 #         validated_data.pop("module_id", None)
 #         validated_data.pop("sender_id", None)
 
-#         return super().update(instance, validated_data)
+#         return super().update(
+#             instance,
+#             validated_data,
+#         )
+
+#     # ========================================================
+#     # CREATED BY
+#     # ========================================================
 
 #     def get_created_by(self, obj):
+
+#         if not obj.activity:
+#             return None
+
 #         user = obj.activity.created_by
 
 #         if not user:
@@ -165,72 +321,110 @@
 #             "id": user.id,
 #             "name": (
 #                 user.get_full_name()
-#                 or getattr(user, "username", None)
 #                 or user.email
 #             ),
 #         }
 
-#     def get_object_name(self, obj, module):
-#         """
-#         Return the proper display name for
-#         Lead / Company / Deal / Ticket.
-#         """
-
-#         if module == "lead":
-#             first_name = getattr(obj, "first_name", "")
-#             last_name = getattr(obj, "last_name", "")
-
-#             name = f"{first_name} {last_name}".strip()
-
-#             if name:
-#                 return name
-
-#             return getattr(obj, "email", str(obj))
-
-#         if module == "company":
-#             return (
-#                 getattr(obj, "company_name", None)
-#                 or getattr(obj, "name", None)
-#                 or str(obj)
-#             )
-
-#         if module == "deal":
-#             return (
-#                 getattr(obj, "deal_name", None)
-#                 or getattr(obj, "name", None)
-#                 or str(obj)
-#             )
-
-#         if module == "ticket":
-#             return (
-#                 getattr(obj, "title", None)
-#                 or getattr(obj, "ticket_name", None)
-#                 or getattr(obj, "name", None)
-#                 or str(obj)
-#             )
-
-#         return str(obj)
+#     # ========================================================
+#     # CONNECTED RECORD NAME
+#     # ========================================================
 
 #     def get_connected(self, obj):
-#         """
-#         Return the connected Lead / Company / Deal / Ticket.
-#         """
 
-#         if not obj.connected:
-#             return None
-
-#         content_type = obj.connected_content_type
 #         connected_object = obj.connected
 
-#         module = content_type.model.lower()
+#         if not connected_object:
+#             return None
+
+#         name = None
+
+#         # ----------------------------------------------------
+#         # Lead
+#         # ----------------------------------------------------
+
+#         if hasattr(connected_object, "first_name"):
+
+#             first_name = getattr(
+#                 connected_object,
+#                 "first_name",
+#                 ""
+#             )
+
+#             last_name = getattr(
+#                 connected_object,
+#                 "last_name",
+#                 ""
+#             )
+
+#             name = (
+#                 f"{first_name} {last_name}"
+#             ).strip()
+
+#             if not name:
+#                 name = getattr(
+#                     connected_object,
+#                     "email",
+#                     None
+#                 )
+
+#         # ----------------------------------------------------
+#         # Company
+#         # ----------------------------------------------------
+
+#         elif hasattr(
+#             connected_object,
+#             "company_name"
+#         ):
+
+#             name = connected_object.company_name
+
+#         # ----------------------------------------------------
+#         # Deal
+#         # ----------------------------------------------------
+
+#         elif hasattr(
+#             connected_object,
+#             "deal_name"
+#         ):
+
+#             name = connected_object.deal_name
+
+#         # ----------------------------------------------------
+#         # Ticket
+#         # ----------------------------------------------------
+
+#         elif hasattr(
+#             connected_object,
+#             "subject"
+#         ):
+
+#             name = connected_object.subject
+
+#         elif hasattr(
+#             connected_object,
+#             "ticket_name"
+#         ):
+
+#             name = connected_object.ticket_name
+
+#         # ----------------------------------------------------
+#         # Generic name
+#         # ----------------------------------------------------
+
+#         elif hasattr(
+#             connected_object,
+#             "name"
+#         ):
+
+#             name = connected_object.name
+
+#         # ----------------------------------------------------
+#         # Final response
+#         # ----------------------------------------------------
 
 #         return {
-#             "id": obj.connected_object_id,
-#             "name": self.get_object_name(
-#                 connected_object,
-#                 module
-#             ),
-#             "module": module,
+#             "id": connected_object.id,
+#             "name": name or str(connected_object),
 #         }
 
 
@@ -249,6 +443,10 @@ from ..activity.models import Activity
 User = get_user_model()
 
 
+# ============================================================
+# MODULE → CONTENT TYPE MAP
+# ============================================================
+
 MODULE_MAP = {
     "lead": ("leads", "lead"),
     "company": ("companies", "company"),
@@ -258,6 +456,10 @@ MODULE_MAP = {
 
 
 class CallSerializer(serializers.ModelSerializer):
+
+    # ========================================================
+    # INPUT FIELDS
+    # ========================================================
 
     module = serializers.CharField(
         write_only=True,
@@ -274,6 +476,10 @@ class CallSerializer(serializers.ModelSerializer):
         required=False,
     )
 
+    # ========================================================
+    # OUTPUT FIELDS
+    # ========================================================
+
     created_by = serializers.SerializerMethodField(
         read_only=True,
     )
@@ -282,6 +488,10 @@ class CallSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    # ========================================================
+    # META
+    # ========================================================
+
     class Meta:
         model = Call
 
@@ -289,21 +499,53 @@ class CallSerializer(serializers.ModelSerializer):
             "id",
             "created_by",
 
+            # ------------------------------------------------
+            # Activity connection
+            # ------------------------------------------------
+
             "module",
             "module_id",
             "sender_id",
 
+            # ------------------------------------------------
+            # Call information
+            # ------------------------------------------------
+
             "call_outcome",
 
+            # ------------------------------------------------
+            # Twilio information
+            # ------------------------------------------------
+
+            # Legacy / primary SID
             "twilio_call_sid",
+
+            # First leg: Twilio → CRM User
+            "user_twilio_call_sid",
+
+            # Second leg: CRM User ↔ Customer
+            "customer_twilio_call_sid",
+
             "twilio_status",
             "duration",
+
+            # ------------------------------------------------
+            # Date / Time / Note
+            # ------------------------------------------------
 
             "date",
             "time",
             "note",
 
+            # ------------------------------------------------
+            # Connected CRM record
+            # ------------------------------------------------
+
             "connected",
+
+            # ------------------------------------------------
+            # Timestamps
+            # ------------------------------------------------
 
             "created_at",
             "updated_at",
@@ -314,50 +556,70 @@ class CallSerializer(serializers.ModelSerializer):
             "created_by",
             "connected",
 
+            # ------------------------------------------------
+            # Twilio-controlled fields
+            # ------------------------------------------------
+
             "twilio_call_sid",
+            "user_twilio_call_sid",
+            "customer_twilio_call_sid",
             "twilio_status",
             "duration",
+
+            # ------------------------------------------------
+            # Timestamps
+            # ------------------------------------------------
 
             "created_at",
             "updated_at",
         ]
 
+    # ========================================================
+    # VALIDATION
+    # ========================================================
+
     def validate(self, attrs):
 
+        # ----------------------------------------------------
+        # Module
+        # ----------------------------------------------------
+
         module = attrs.get("module")
-
-        if module:
-            module = module.strip().lower()
-            attrs["module"] = module
-
-        module_id = attrs.get("module_id")
-        sender_id = attrs.get("sender_id")
-
-        # -----------------------------
-        # Validate module
-        # -----------------------------
 
         if not module:
             raise serializers.ValidationError({
                 "module": "Module is required."
             })
 
+        module = module.strip().lower()
+        attrs["module"] = module
+
+        # ----------------------------------------------------
+        # Validate module name
+        # ----------------------------------------------------
+
         if module not in MODULE_MAP:
             raise serializers.ValidationError({
                 "module": (
-                    "Invalid module. "
-                    "Allowed values: lead, company, deal, ticket."
+                    "Invalid module. Allowed values: "
+                    "lead, company, deal, ticket."
                 )
             })
 
-        # -----------------------------
-        # Validate module ID
-        # -----------------------------
+        # ----------------------------------------------------
+        # Module ID
+        # ----------------------------------------------------
+
+        module_id = attrs.get("module_id")
 
         if not module_id:
             raise serializers.ValidationError({
                 "module_id": "Module ID is required."
             })
+
+        # ----------------------------------------------------
+        # Get ContentType
+        # ----------------------------------------------------
 
         app_label, model_name = MODULE_MAP[module]
 
@@ -366,21 +628,32 @@ class CallSerializer(serializers.ModelSerializer):
                 app_label=app_label,
                 model=model_name,
             )
+
         except ContentType.DoesNotExist:
             raise serializers.ValidationError({
                 "module": (
-                    f"Content type for '{module}' does not exist."
+                    f"Content type for '{module}' "
+                    "does not exist."
                 )
             })
+
+        # ----------------------------------------------------
+        # Get actual model class
+        # ----------------------------------------------------
 
         model_class = content_type.model_class()
 
         if not model_class:
             raise serializers.ValidationError({
                 "module": (
-                    f"Model for '{module}' could not be found."
+                    f"Model for '{module}' "
+                    "could not be found."
                 )
             })
+
+        # ----------------------------------------------------
+        # Validate CRM record exists
+        # ----------------------------------------------------
 
         if not model_class.objects.filter(
             pk=module_id
@@ -393,9 +666,11 @@ class CallSerializer(serializers.ModelSerializer):
                 )
             })
 
-        # -----------------------------
-        # Validate sender
-        # -----------------------------
+        # ----------------------------------------------------
+        # Sender
+        # ----------------------------------------------------
+
+        sender_id = attrs.get("sender_id")
 
         if not sender_id:
             raise serializers.ValidationError({
@@ -407,12 +682,15 @@ class CallSerializer(serializers.ModelSerializer):
         ).exists():
 
             raise serializers.ValidationError({
-                "sender_id": "User does not exist."
+                "sender_id": (
+                    f"User with id {sender_id} "
+                    "does not exist."
+                )
             })
 
-        # -----------------------------
-        # Validate duration
-        # -----------------------------
+        # ----------------------------------------------------
+        # Duration
+        # ----------------------------------------------------
 
         duration = attrs.get("duration")
 
@@ -425,12 +703,24 @@ class CallSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    # ========================================================
+    # CREATE
+    # ========================================================
+
     @transaction.atomic
     def create(self, validated_data):
+
+        # ----------------------------------------------------
+        # Remove activity-related fields
+        # ----------------------------------------------------
 
         module = validated_data.pop("module")
         module_id = validated_data.pop("module_id")
         sender_id = validated_data.pop("sender_id")
+
+        # ----------------------------------------------------
+        # Get ContentType
+        # ----------------------------------------------------
 
         app_label, model_name = MODULE_MAP[module]
 
@@ -439,9 +729,9 @@ class CallSerializer(serializers.ModelSerializer):
             model=model_name,
         )
 
-        # -----------------------------
+        # ----------------------------------------------------
         # Create Activity
-        # -----------------------------
+        # ----------------------------------------------------
 
         activity = Activity.objects.create(
             activity_type="call",
@@ -450,9 +740,9 @@ class CallSerializer(serializers.ModelSerializer):
             object_id=module_id,
         )
 
-        # -----------------------------
+        # ----------------------------------------------------
         # Create Call
-        # -----------------------------
+        # ----------------------------------------------------
 
         call = Call.objects.create(
             activity=activity,
@@ -463,10 +753,16 @@ class CallSerializer(serializers.ModelSerializer):
 
         return call
 
+    # ========================================================
+    # UPDATE
+    # ========================================================
+
     def update(self, instance, validated_data):
 
-        # These identify the original activity
-        # and should never be changed.
+        # ----------------------------------------------------
+        # Activity connection must not be changed
+        # ----------------------------------------------------
+
         validated_data.pop("module", None)
         validated_data.pop("module_id", None)
         validated_data.pop("sender_id", None)
@@ -476,7 +772,14 @@ class CallSerializer(serializers.ModelSerializer):
             validated_data,
         )
 
+    # ========================================================
+    # CREATED BY
+    # ========================================================
+
     def get_created_by(self, obj):
+
+        if not obj.activity:
+            return None
 
         user = obj.activity.created_by
 
@@ -491,6 +794,10 @@ class CallSerializer(serializers.ModelSerializer):
             ),
         }
 
+    # ========================================================
+    # CONNECTED RECORD NAME
+    # ========================================================
+
     def get_connected(self, obj):
 
         connected_object = obj.connected
@@ -500,20 +807,89 @@ class CallSerializer(serializers.ModelSerializer):
 
         name = None
 
-        if hasattr(connected_object, "contact_name"):
-            name = connected_object.contact_name
+        # ----------------------------------------------------
+        # Lead
+        # ----------------------------------------------------
 
-        elif hasattr(connected_object, "company_name"):
+        if hasattr(connected_object, "first_name"):
+
+            first_name = getattr(
+                connected_object,
+                "first_name",
+                ""
+            )
+
+            last_name = getattr(
+                connected_object,
+                "last_name",
+                ""
+            )
+
+            name = (
+                f"{first_name} {last_name}"
+            ).strip()
+
+            if not name:
+                name = getattr(
+                    connected_object,
+                    "email",
+                    None
+                )
+
+        # ----------------------------------------------------
+        # Company
+        # ----------------------------------------------------
+
+        elif hasattr(
+            connected_object,
+            "company_name"
+        ):
+
             name = connected_object.company_name
 
-        elif hasattr(connected_object, "deal_name"):
+        # ----------------------------------------------------
+        # Deal
+        # ----------------------------------------------------
+
+        elif hasattr(
+            connected_object,
+            "deal_name"
+        ):
+
             name = connected_object.deal_name
 
-        elif hasattr(connected_object, "subject"):
+        # ----------------------------------------------------
+        # Ticket
+        # ----------------------------------------------------
+
+        elif hasattr(
+            connected_object,
+            "subject"
+        ):
+
             name = connected_object.subject
 
-        elif hasattr(connected_object, "name"):
+        elif hasattr(
+            connected_object,
+            "ticket_name"
+        ):
+
+            name = connected_object.ticket_name
+
+        # ----------------------------------------------------
+        # Generic name
+        # ----------------------------------------------------
+
+        elif hasattr(
+            connected_object,
+            "name"
+        ):
+
             name = connected_object.name
+
+        # ----------------------------------------------------
+        # Final response
+        # ----------------------------------------------------
 
         return {
             "id": connected_object.id,

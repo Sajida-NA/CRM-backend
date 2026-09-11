@@ -1,223 +1,798 @@
 
 
-from rest_framework.views import APIView 
-from rest_framework.response import Response 
-from rest_framework import status 
-from rest_framework.permissions import IsAuthenticated 
+# from rest_framework.views import APIView 
+# from rest_framework.response import Response 
+# from rest_framework import status 
+# from rest_framework.permissions import IsAuthenticated 
  
-from .models import Deal 
-from .serializers import ( 
-    DealCreateSerializer, 
-    DealListSerializer, 
-) 
- 
- 
-class DealListCreateView(APIView): 
- 
-    # Only authenticated users can access Deals 
-    permission_classes = [IsAuthenticated] 
- 
-    # GET - List all deals 
-    def get(self, request): 
- 
-        deals = Deal.objects.select_related( 
-            "associated_lead", 
-            "deal_owner" 
-        ).all() 
- 
-        serializer = DealListSerializer( 
-            deals, 
-            many=True 
-        ) 
- 
-        return Response( 
-            serializer.data, 
-            status=status.HTTP_200_OK 
-        ) 
- 
-    # POST - Create a new deal 
-    def post(self, request): 
- 
-        serializer = DealCreateSerializer( 
-            data=request.data 
-        ) 
- 
-        if serializer.is_valid(): 
- 
-            deal = serializer.save() 
- 
-            response_serializer = DealListSerializer( 
-                deal 
-            ) 
- 
-            return Response( 
-                response_serializer.data, 
-                status=status.HTTP_201_CREATED 
-            ) 
- 
-        return Response( 
-            serializer.errors, 
-            status=status.HTTP_400_BAD_REQUEST 
-        ) 
+# from .models import Deal 
+# from apps.notifications.models import Notification
+
+
+
+# from .serializers import ( 
+#     DealCreateSerializer, 
+#     DealListSerializer, 
+# ) 
  
  
-class DealDetailView(APIView): 
+# class DealListCreateView(APIView): 
  
-    # Only authenticated users can access Deal details 
-    permission_classes = [IsAuthenticated] 
+#     # Only authenticated users can access Deals 
+#     permission_classes = [IsAuthenticated] 
  
-    # GET - Get one deal 
-    def get(self, request, pk): 
+#     # GET - List all deals 
+#     def get(self, request): 
  
-        try: 
+#         deals = Deal.objects.select_related( 
+#             "associated_lead", 
+#             "deal_owner" 
+#         ).all() 
  
-            deal = Deal.objects.select_related( 
-                "associated_lead", 
-                "deal_owner" 
-            ).get(pk=pk) 
+#         serializer = DealListSerializer( 
+#             deals, 
+#             many=True 
+#         ) 
  
-        except Deal.DoesNotExist: 
+#         return Response( 
+#             serializer.data, 
+#             status=status.HTTP_200_OK 
+#         ) 
  
-            return Response( 
-                { 
-                    "detail": "Deal not found." 
-                }, 
-                status=status.HTTP_404_NOT_FOUND 
-            ) 
+#     # POST - Create a new deal 
+#     def post(self, request): 
  
-        serializer = DealListSerializer( 
-            deal 
-        ) 
+#         serializer = DealCreateSerializer( 
+#             data=request.data 
+#         ) 
  
-        return Response( 
-            serializer.data, 
-            status=status.HTTP_200_OK 
-        ) 
+#         if serializer.is_valid(): 
  
-    # PUT - Complete update 
-    def put(self, request, pk): 
+#             deal = serializer.save() 
+
+#             Notification.objects.create(
+
+#                 user=request.user,
+#                 title="New Deal Added",
+#                 message=f"New deal {deal.deal_name} has been added.",
+#             )
+
+#             response_serializer = DealListSerializer( 
+#                 deal 
+#             ) 
  
-        try: 
+#             return Response( 
+#                 response_serializer.data, 
+#                 status=status.HTTP_201_CREATED 
+#             ) 
  
-            deal = Deal.objects.select_related( 
-                "associated_lead", 
-                "deal_owner" 
-            ).get(pk=pk) 
+#         return Response( 
+#             serializer.errors, 
+#             status=status.HTTP_400_BAD_REQUEST 
+#         ) 
  
-        except Deal.DoesNotExist: 
  
-            return Response( 
-                { 
-                    "detail": "Deal not found." 
-                }, 
-                status=status.HTTP_404_NOT_FOUND 
-            ) 
+# class DealDetailView(APIView): 
  
-        serializer = DealCreateSerializer( 
-            deal, 
-            data=request.data 
-        ) 
+#     # Only authenticated users can access Deal details 
+#     permission_classes = [IsAuthenticated] 
  
-        if serializer.is_valid(): 
+#     # GET - Get one deal 
+#     def get(self, request, pk): 
  
-            deal = serializer.save() 
+#         try: 
  
-            response_serializer = DealListSerializer( 
-                deal 
-            ) 
+#             deal = Deal.objects.select_related( 
+#                 "associated_lead", 
+#                 "deal_owner" 
+#             ).get(pk=pk) 
  
-            return Response( 
-                response_serializer.data, 
-                status=status.HTTP_200_OK 
-            ) 
+#         except Deal.DoesNotExist: 
  
-        return Response( 
-            serializer.errors, 
-            status=status.HTTP_400_BAD_REQUEST 
-        ) 
+#             return Response( 
+#                 { 
+#                     "detail": "Deal not found." 
+#                 }, 
+#                 status=status.HTTP_404_NOT_FOUND 
+#             ) 
  
-    # PATCH - Partial update 
-    def patch(self, request, pk): 
+#         serializer = DealListSerializer( 
+#             deal 
+#         ) 
  
-        try: 
+#         return Response( 
+#             serializer.data, 
+#             status=status.HTTP_200_OK 
+#         ) 
  
-            deal = Deal.objects.select_related( 
-                "associated_lead", 
-                "deal_owner" 
-            ).get(pk=pk) 
+#     # PUT - Complete update 
+#     def put(self, request, pk): 
  
-        except Deal.DoesNotExist: 
+#         try: 
  
-            return Response( 
-                { 
-                    "detail": "Deal not found." 
-                }, 
-                status=status.HTTP_404_NOT_FOUND 
-            ) 
+#             deal = Deal.objects.select_related( 
+#                 "associated_lead", 
+#                 "deal_owner" 
+#             ).get(pk=pk) 
  
-        serializer = DealCreateSerializer( 
-            deal, 
-            data=request.data, 
-            partial=True 
-        ) 
+#         except Deal.DoesNotExist: 
  
-        if serializer.is_valid(): 
+#             return Response( 
+#                 { 
+#                     "detail": "Deal not found." 
+#                 }, 
+#                 status=status.HTTP_404_NOT_FOUND 
+#             ) 
  
-            deal = serializer.save() 
+#         serializer = DealCreateSerializer( 
+#             deal, 
+#             data=request.data 
+#         ) 
  
-            response_serializer = DealListSerializer( 
-                deal 
-            ) 
+#         if serializer.is_valid(): 
+
+#             old_stage = deal.deal_stage
+
+#             deal = serializer.save() 
+
+#             if old_stage != deal.deal_stage:
+
+#                 if deal.deal_stage == "Closed Won":
+
+#                     Notification.objects.create(
+#                         user=request.user,
+#                         title="Deal Won",
+#                         message=f"Deal {deal.deal_name} has been marked as Closed Won.",
+#                     )
+
+#                 elif deal.deal_stage == "Closed Lost":
+
+#                     Notification.objects.create(
+#                         user=request.user,
+#                         title="Deal Lost",
+#                         message=f"Deal {deal.deal_name} has been marked as Closed Lost.",
+#                     )
+
+#                 else:
+
+#                     Notification.objects.create(
+#                         user=request.user,
+#                         title="Deal Stage Changed",
+#                         message=f"Deal {deal.deal_name} moved from {old_stage} to {deal.deal_stage}.",
+#                     )
+
+#             else:
+
+#                 Notification.objects.create(
+#                   user=request.user,
+#                   title="Deal Updated",
+#                   message=f"Deal {deal.deal_name} has been updated.",
+#                 )
+
+#             response_serializer = DealListSerializer(
+#                 deal
+#             )
+
+#             return Response( 
+#                 response_serializer.data, 
+#                 status=status.HTTP_200_OK 
+#             ) 
  
-            return Response( 
-                response_serializer.data, 
-                status=status.HTTP_200_OK 
-            ) 
+#         return Response( 
+#             serializer.errors, 
+#             status=status.HTTP_400_BAD_REQUEST 
+#         ) 
  
-        return Response( 
-            serializer.errors, 
-            status=status.HTTP_400_BAD_REQUEST 
-        ) 
+#     # PATCH - Partial update 
+#     def patch(self, request, pk): 
  
-    # DELETE - Delete deal 
-    def delete(self, request, pk): 
+#         try: 
  
-        try: 
+#             deal = Deal.objects.select_related( 
+#                 "associated_lead", 
+#                 "deal_owner" 
+#             ).get(pk=pk) 
  
-            deal = Deal.objects.get(pk=pk) 
+#         except Deal.DoesNotExist: 
  
-        except Deal.DoesNotExist: 
+#             return Response( 
+#                 { 
+#                     "detail": "Deal not found." 
+#                 }, 
+#                 status=status.HTTP_404_NOT_FOUND 
+#             ) 
  
-            return Response( 
-                { 
-                    "detail": "Deal not found." 
-                }, 
-                status=status.HTTP_404_NOT_FOUND 
-            ) 
+#         serializer = DealCreateSerializer( 
+#             deal, 
+#             data=request.data, 
+#             partial=True 
+#         ) 
  
-        deal.delete() 
+#         if serializer.is_valid(): 
+
+#             old_stage = deal.deal_stage
  
-        return Response( 
-            { 
-                "message": "Deal deleted successfully." 
-            }, 
-            status=status.HTTP_204_NO_CONTENT 
-        ) 
-class DealStageListView(APIView): 
+#             deal = serializer.save() 
+
+#             # Check whether deal stage was changed
+#             if old_stage != deal.deal_stage:
+
+#                 if deal.deal_stage == "Closed Won":
+
+#                     Notification.objects.create(
+#                       user=request.user,
+#                       title="Deal Won",
+#                       message=f"Deal {deal.deal_name} has been marked as Closed Won.",
+#                     )
+
+#                 elif deal.deal_stage == "Closed Lost":
+
+#                     Notification.objects.create(
+#                        user=request.user,
+#                        title="Deal Lost",
+#                        message=f"Deal {deal.deal_name} has been marked as Closed Lost.",
+#                     )
+
+#                 else:
+
+#                     Notification.objects.create(
+#                        user=request.user,
+#                        title="Deal Stage Changed",
+#                        message=f"Deal {deal.deal_name} moved from {old_stage} to {deal.deal_stage}.",
+#                     )
+
+#             else:
+
+#                 Notification.objects.create(
+#                     user=request.user,
+#                     title="Deal Updated",
+#                     message=f"Deal {deal.deal_name} has been updated.",
+#                 )
  
-    permission_classes = [IsAuthenticated] 
+#             response_serializer = DealListSerializer( 
+#                 deal 
+#             ) 
  
-    def get(self, request): 
+#             return Response( 
+#                 response_serializer.data, 
+#                 status=status.HTTP_200_OK 
+#             ) 
  
-        stages = [ 
-            { 
-                "value": value, 
-                "label": label, 
-            } 
-            for value, label in Deal.DEAL_STAGE_CHOICES 
-        ] 
+#         return Response( 
+#             serializer.errors, 
+#             status=status.HTTP_400_BAD_REQUEST 
+#         ) 
  
-        return Response( 
-            stages, 
-            status=status.HTTP_200_OK 
+#     # DELETE - Delete deal 
+#     def delete(self, request, pk): 
+ 
+#         try: 
+ 
+#             deal = Deal.objects.get(pk=pk) 
+ 
+#         except Deal.DoesNotExist: 
+ 
+#             return Response( 
+#                 { 
+#                     "detail": "Deal not found." 
+#                 }, 
+#                 status=status.HTTP_404_NOT_FOUND 
+#             ) 
+
+#         deal_name = deal.deal_name
+
+#         deal.delete() 
+
+#         Notification.objects.create(
+#            user=request.user,
+#            title="Deal Deleted",
+#            message=f"Deal {deal_name} has been deleted.",
+#         )
+ 
+#         return Response( 
+#             { 
+#                 "message": "Deal deleted successfully." 
+#             }, 
+#             status=status.HTTP_204_NO_CONTENT 
+#         ) 
+
+    
+# class DealStageListView(APIView): 
+ 
+#     permission_classes = [IsAuthenticated] 
+ 
+#     def get(self, request): 
+ 
+#         stages = [ 
+#             { 
+#                 "value": value, 
+#                 "label": label, 
+#             } 
+#             for value, label in Deal.DEAL_STAGE_CHOICES 
+#         ] 
+ 
+#         return Response( 
+#             stages, 
+#             status=status.HTTP_200_OK 
+#         )
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+
+from .models import Deal
+from apps.notifications.models import Notification
+
+from .serializers import (
+    DealCreateSerializer,
+    DealListSerializer,
+)
+
+
+# =========================================================
+# HELPER
+# =========================================================
+
+def is_admin(user):
+    return (
+        getattr(user, "role", "") == "Admin"
+        or user.is_staff
+    )
+
+
+# =========================================================
+# DEAL LIST + CREATE
+# =========================================================
+
+class DealListCreateView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    # -----------------------------------------------------
+    # GET - LIST DEALS
+    # -----------------------------------------------------
+
+    def get(self, request):
+
+        if is_admin(request.user):
+
+            # Admin -> all deals
+            deals = Deal.objects.select_related(
+                "associated_lead",
+                "deal_owner",
+            ).all()
+
+        else:
+
+            # User -> only own deals
+            deals = Deal.objects.select_related(
+                "associated_lead",
+                "deal_owner",
+            ).filter(
+                deal_owner=request.user
+            )
+
+        serializer = DealListSerializer(
+            deals,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+    # -----------------------------------------------------
+    # POST - CREATE DEAL
+    # -----------------------------------------------------
+
+    def post(self, request):
+
+        serializer = DealCreateSerializer(
+            data=request.data
+        )
+
+        if serializer.is_valid():
+
+            # Automatically assign logged-in user as owner
+            deal = serializer.save(
+                deal_owner=request.user
+            )
+
+            # Notification
+            Notification.objects.create(
+                user=request.user,
+                title="New Deal Added",
+                message=(
+                    f"New deal {deal.deal_name} "
+                    f"has been added."
+                ),
+            )
+
+            response_serializer = DealListSerializer(
+                deal
+            )
+
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+# =========================================================
+# DEAL DETAIL + UPDATE + DELETE
+# =========================================================
+
+class DealDetailView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    # -----------------------------------------------------
+    # GET - GET ONE DEAL
+    # -----------------------------------------------------
+
+    def get(self, request, pk):
+
+        if is_admin(request.user):
+
+            # Admin -> any deal
+            try:
+                deal = Deal.objects.select_related(
+                    "associated_lead",
+                    "deal_owner",
+                ).get(pk=pk)
+
+            except Deal.DoesNotExist:
+                return Response(
+                    {
+                        "detail": "Deal not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        else:
+
+            # User -> only own deal
+            try:
+                deal = Deal.objects.select_related(
+                    "associated_lead",
+                    "deal_owner",
+                ).get(
+                    pk=pk,
+                    deal_owner=request.user
+                )
+
+            except Deal.DoesNotExist:
+                return Response(
+                    {
+                        "detail": "Deal not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        serializer = DealListSerializer(deal)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+    # -----------------------------------------------------
+    # PUT - COMPLETE UPDATE
+    # -----------------------------------------------------
+
+    def put(self, request, pk):
+
+        if is_admin(request.user):
+
+            # Admin -> can update any deal
+            try:
+                deal = Deal.objects.select_related(
+                    "associated_lead",
+                    "deal_owner",
+                ).get(pk=pk)
+
+            except Deal.DoesNotExist:
+                return Response(
+                    {
+                        "detail": "Deal not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        else:
+
+            # User -> can update only own deal
+            try:
+                deal = Deal.objects.select_related(
+                    "associated_lead",
+                    "deal_owner",
+                ).get(
+                    pk=pk,
+                    deal_owner=request.user
+                )
+
+            except Deal.DoesNotExist:
+                return Response(
+                    {
+                        "detail": "Deal not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        old_stage = deal.deal_stage
+
+        serializer = DealCreateSerializer(
+            deal,
+            data=request.data
+        )
+
+        if serializer.is_valid():
+
+            deal = serializer.save()
+
+            # Stage change notification
+            if old_stage != deal.deal_stage:
+
+                if deal.deal_stage == "Closed Won":
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Won",
+                        message=(
+                            f"Deal {deal.deal_name} "
+                            f"has been marked as Closed Won."
+                        ),
+                    )
+
+                elif deal.deal_stage == "Closed Lost":
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Lost",
+                        message=(
+                            f"Deal {deal.deal_name} "
+                            f"has been marked as Closed Lost."
+                        ),
+                    )
+
+                else:
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Stage Changed",
+                        message=(
+                            f"Deal {deal.deal_name} moved "
+                            f"from {old_stage} "
+                            f"to {deal.deal_stage}."
+                        ),
+                    )
+
+            else:
+
+                Notification.objects.create(
+                    user=request.user,
+                    title="Deal Updated",
+                    message=(
+                        f"Deal {deal.deal_name} "
+                        f"has been updated."
+                    ),
+                )
+
+            response_serializer = DealListSerializer(
+                deal
+            )
+
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # -----------------------------------------------------
+    # PATCH - PARTIAL UPDATE
+    # -----------------------------------------------------
+
+    def patch(self, request, pk):
+
+        if is_admin(request.user):
+
+            # Admin -> can update any deal
+            try:
+                deal = Deal.objects.select_related(
+                    "associated_lead",
+                    "deal_owner",
+                ).get(pk=pk)
+
+            except Deal.DoesNotExist:
+                return Response(
+                    {
+                        "detail": "Deal not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        else:
+
+            # User -> can update only own deal
+            try:
+                deal = Deal.objects.select_related(
+                    "associated_lead",
+                    "deal_owner",
+                ).get(
+                    pk=pk,
+                    deal_owner=request.user
+                )
+
+            except Deal.DoesNotExist:
+                return Response(
+                    {
+                        "detail": "Deal not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        old_stage = deal.deal_stage
+
+        serializer = DealCreateSerializer(
+            deal,
+            data=request.data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+
+            deal = serializer.save()
+
+            # Stage change notification
+            if old_stage != deal.deal_stage:
+
+                if deal.deal_stage == "Closed Won":
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Won",
+                        message=(
+                            f"Deal {deal.deal_name} "
+                            f"has been marked as Closed Won."
+                        ),
+                    )
+
+                elif deal.deal_stage == "Closed Lost":
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Lost",
+                        message=(
+                            f"Deal {deal.deal_name} "
+                            f"has been marked as Closed Lost."
+                        ),
+                    )
+
+                else:
+
+                    Notification.objects.create(
+                        user=request.user,
+                        title="Deal Stage Changed",
+                        message=(
+                            f"Deal {deal.deal_name} moved "
+                            f"from {old_stage} "
+                            f"to {deal.deal_stage}."
+                        ),
+                    )
+
+            else:
+
+                Notification.objects.create(
+                    user=request.user,
+                    title="Deal Updated",
+                    message=(
+                        f"Deal {deal.deal_name} "
+                        f"has been updated."
+                    ),
+                )
+
+            response_serializer = DealListSerializer(
+                deal
+            )
+
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # -----------------------------------------------------
+    # DELETE - DELETE DEAL
+    # -----------------------------------------------------
+
+    def delete(self, request, pk):
+
+        if is_admin(request.user):
+
+            # Admin -> can delete any deal
+            try:
+                deal = Deal.objects.get(pk=pk)
+
+            except Deal.DoesNotExist:
+                return Response(
+                    {
+                        "detail": "Deal not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        else:
+
+            # User -> can delete only own deal
+            try:
+                deal = Deal.objects.get(
+                    pk=pk,
+                    deal_owner=request.user
+                )
+
+            except Deal.DoesNotExist:
+                return Response(
+                    {
+                        "detail": "Deal not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        deal_name = deal.deal_name
+
+        deal.delete()
+
+        Notification.objects.create(
+            user=request.user,
+            title="Deal Deleted",
+            message=(
+                f"Deal {deal_name} "
+                f"has been deleted."
+            ),
+        )
+
+        return Response(
+            {
+                "message": "Deal deleted successfully."
+            },
+            status=status.HTTP_204_NO_CONTENT
+        )
+
+
+# =========================================================
+# DEAL STAGE DROPDOWN
+# =========================================================
+
+class DealStageListView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        stages = [
+            {
+                "value": value,
+                "label": label,
+            }
+            for value, label in Deal.DEAL_STAGE_CHOICES
+        ]
+
+        return Response(
+            stages,
+            status=status.HTTP_200_OK
         )

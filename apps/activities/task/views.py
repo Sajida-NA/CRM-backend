@@ -9,6 +9,8 @@ from django.contrib.auth import get_user_model
 from .models import Task
 from .serializers import TaskSerializer
 
+from apps.notifications.models import Notification
+
 
 # ========================================
 # LIST + CREATE TASK
@@ -64,16 +66,19 @@ class TaskListCreateView(APIView):
 
         task = serializer.save()
 
-        response_serializer = TaskSerializer(
-            task,
-            context={"request": request},
+        Notification.objects.create(
+           user=request.user,
+           title="New Task Added",
+           message=f"Task {task.task_name} has been created.",
         )
 
         return Response(
-            response_serializer.data,
-            status=status.HTTP_201_CREATED,
+            TaskSerializer(
+               task,
+               context={"request": request}
+            ).data,
+            status=status.HTTP_201_CREATED
         )
-
 
 # ========================================
 # TASK OPTIONS
@@ -234,6 +239,12 @@ class TaskDetailView(APIView):
 
         task = serializer.save()
 
+        Notification.objects.create(
+           user=request.user,
+           title="Task Updated",
+           message=f"Task {task.task_name} has been updated.",
+        )
+
         return Response(
             TaskSerializer(
                 task,
@@ -272,6 +283,12 @@ class TaskDetailView(APIView):
 
         task = serializer.save()
 
+        Notification.objects.create(
+           user=request.user,
+           title="Task Updated",
+           message=f"Task {task.task_name} has been updated.",
+        )
+
         return Response(
             TaskSerializer(
                 task,
@@ -296,8 +313,16 @@ class TaskDetailView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
+        
+        task_name = task.task_name
 
         task.delete()
+
+        Notification.objects.create(
+           user=request.user,
+           title="Task Deleted",
+           message=f"Task {task_name} has been deleted.",
+        )
 
         return Response(
             status=status.HTTP_204_NO_CONTENT

@@ -17,3 +17,6 @@ db.sqlite3
 
 # macOS
 .DS_Store
+
+# Node modules
+node_modules/

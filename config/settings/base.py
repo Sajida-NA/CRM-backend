@@ -52,13 +52,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    
-    
-
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+
+    # Local Apps
     'apps.accounts',
     'apps.companies',
     "apps.leads",
@@ -66,7 +65,8 @@ INSTALLED_APPS = [
     "apps.deals",
     "apps.tickets",
     "apps.dashboard",
-    
+    "apps.notifications",
+    "apps.search",
 
 # Activity apps
     "apps.activities.activity",
@@ -195,7 +195,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
@@ -222,7 +222,7 @@ TWILIO_PHONE_NUMBER = config(
     default=None,
 )
 
-TWILIO_VOICE_WEBHOOK_BASE_URL = config(
-    "TWILIO_VOICE_WEBHOOK_BASE_URL",
+TWILIO_WEBHOOK_BASE_URL = config(
+    "TWILIO_WEBHOOK_BASE_URL",
     default=None,
 )

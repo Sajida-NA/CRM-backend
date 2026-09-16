@@ -1,3 +1,5 @@
+
+
 from rest_framework import serializers
 
 from .models import Ticket
@@ -43,6 +45,13 @@ class TicketListSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    # Display associated deal stage
+    # Deal model field = deal_stage
+    deal_status = serializers.CharField(
+        source="associated_deal.deal_stage",
+        read_only=True
+    )
+
     # Keep owner display name for table
     ticket_owner = serializers.SerializerMethodField()
 
@@ -68,6 +77,7 @@ class TicketListSerializer(serializers.ModelSerializer):
             "ticket_name",
             "description",
             "deal_name",
+            "deal_status",
             "associated_deal_id",
             "ticket_status",
             "priority",
@@ -109,3 +119,4 @@ class UpdateTicketSerializer(serializers.ModelSerializer):
             "ticket_owner",
             "associated_deal",
         )
+

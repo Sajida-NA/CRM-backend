@@ -6,9 +6,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import Task
-
 from apps.activities.activity.models import Activity
-from apps.leads.models import Lead
 
 User = get_user_model()
 
@@ -36,8 +34,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
     assigned_to = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(),
-        required=False,
-        allow_null=True
+        many=True,
+        required=False
     )
 
     # ========================================
@@ -199,7 +197,7 @@ class TaskSerializer(serializers.ModelSerializer):
                 "id": related_object.id,
                 "name": getattr(
                     related_object,
-                    "name",
+                    "ticket_name",
                     str(related_object)
                 )
             }
@@ -207,7 +205,139 @@ class TaskSerializer(serializers.ModelSerializer):
         return None
 
     # ========================================
-    # VALIDATION
+    # OWNER IDS HELPER
+    # ========================================
+
+    def get_allowed_owner_ids(
+        self,
+        module,
+        related_object
+    ):
+        """
+        Returns the users who are allowed to be
+        assigned to a task for the given CRM object.
+
+        Lead   -> contact_owners
+        Deal   -> deal_owners
+        Ticket -> ticket_owners
+        Company -> no restriction
+        """
+
+        if module == "lead":
+
+            return set(
+                related_object.contact_owners.values_list(
+                    "id",
+                    flat=True
+                )
+            )
+
+        if module == "deal":
+
+            return set(
+                related_object.deal_owners.values_list(
+                    "id",
+                    flat=True
+                )
+            )
+
+        if module == "ticket":
+
+            return set(
+                related_object.ticket_owners.values_list(
+                    "id",
+                    flat=True
+                )
+            )
+
+        # Company keeps the existing behavior.
+        if module == "company":
+
+            return None
+
+        return set()
+
+    # ========================================
+    # VALIDATE ASSIGNED USERS
+    # ========================================
+
+    def validate_assigned_users(
+        self,
+        module,
+        related_object,
+        assigned_users
+    ):
+        """
+        Validate Task Assigned To users.
+
+        Lead:
+            Must be Lead Contact Owners.
+
+        Deal:
+            Must be Deal Owners.
+
+        Ticket:
+            Must be Ticket Owners.
+
+        Company:
+            No owner restriction.
+        """
+
+        if assigned_users is None:
+            return
+
+        allowed_owner_ids = self.get_allowed_owner_ids(
+            module,
+            related_object
+        )
+
+        # Company has no restriction.
+        if allowed_owner_ids is None:
+            return
+
+        invalid_users = [
+            user.id
+            for user in assigned_users
+            if user.id not in allowed_owner_ids
+        ]
+
+        if not invalid_users:
+            return
+
+        if module == "lead":
+
+            message = (
+                "All assigned users must be one of "
+                "the lead's contact owners."
+            )
+
+        elif module == "deal":
+
+            message = (
+                "All assigned users must be one of "
+                "the deal's owners."
+            )
+
+        elif module == "ticket":
+
+            message = (
+                "All assigned users must be one of "
+                "the ticket's owners."
+            )
+
+        else:
+
+            message = (
+                "Selected users are not allowed "
+                "for this task."
+            )
+
+        raise serializers.ValidationError({
+            "assigned_to": message
+        })
+
+    # ========================================
+    # VALIDATE
     # ========================================
 
     def validate(self, attrs):
@@ -224,6 +354,11 @@ class TaskSerializer(serializers.ModelSerializer):
 
         sender_id = attrs.pop(
             "sender_id",
+            None
+        )
+
+        assigned_users = attrs.get(
+            "assigned_to",
             None
         )
 
@@ -254,7 +389,56 @@ class TaskSerializer(serializers.ModelSerializer):
 
         if module is None and module_id is None:
 
+            # ------------------------------------
+            # Existing task
+            # ------------------------------------
+
+            if self.instance is not None:
+
+                activity = getattr(
+                    self.instance,
+                    "activity",
+                    None
+                )
+
+                if activity:
+
+                    related_object = (
+                        activity.content_object
+                    )
+
+                    content_type = (
+                        activity.content_type
+                    )
+
+                    if (
+                        assigned_users is not None
+                        and related_object
+                        and content_type
+                    ):
+
+                        existing_module = (
+                            content_type.model
+                        )
+
+                        # --------------------------------
+                        # Validate Lead / Deal / Ticket
+                        # --------------------------------
+
+                        if existing_module in [
+                            "lead",
+                            "deal",
+                            "ticket",
+                        ]:
+
+                            self.validate_assigned_users(
+                                existing_module,
+                                related_object,
+                                assigned_users
+                            )
+
             if sender is not None:
+
                 attrs["_sender"] = sender
 
             return attrs
@@ -270,7 +454,9 @@ class TaskSerializer(serializers.ModelSerializer):
                     "Both module and module_id are required."
             })
 
-        module = str(module).lower().strip()
+        module = str(
+            module
+        ).lower().strip()
 
         MODULE_MAP = {
 
@@ -295,6 +481,10 @@ class TaskSerializer(serializers.ModelSerializer):
             ),
         }
 
+        # ========================================
+        # VALID MODULE
+        # ========================================
+
         if module not in MODULE_MAP:
 
             raise serializers.ValidationError({
@@ -303,7 +493,9 @@ class TaskSerializer(serializers.ModelSerializer):
                     "lead, deal, company, ticket."
             })
 
-        app_label, model_name = MODULE_MAP[module]
+        app_label, model_name = MODULE_MAP[
+            module
+        ]
 
         # ========================================
         # CONTENT TYPE
@@ -324,7 +516,7 @@ class TaskSerializer(serializers.ModelSerializer):
             })
 
         # ========================================
-        # CHECK CRM OBJECT
+        # MODEL CLASS
         # ========================================
 
         model_class = content_type.model_class()
@@ -335,6 +527,10 @@ class TaskSerializer(serializers.ModelSerializer):
                 "module":
                     f"Unable to find model for {module}."
             })
+
+        # ========================================
+        # CRM OBJECT
+        # ========================================
 
         related_object = model_class.objects.filter(
             id=module_id
@@ -348,47 +544,14 @@ class TaskSerializer(serializers.ModelSerializer):
             })
 
         # ========================================
-        # LEAD ASSIGNED-TO VALIDATION
-        # ========================================
-        #
-        # Lead Contact Owners are multiple users.
-        #
-        # Task Assigned To remains SINGLE user.
-        #
-        # Therefore:
-        #
-        # Lead Contact Owners:
-        #     Sajij
-        #     Riya
-        #     Hisham
-        #
-        # Task Assigned To can be:
-        #     Sajij OR Riya OR Hisham
-        #
-        # But not another user.
+        # ASSIGNED USER VALIDATION
         # ========================================
 
-        if module == "lead":
-
-            assigned_user = attrs.get(
-                "assigned_to"
-            )
-
-            if assigned_user is not None:
-
-                is_contact_owner = (
-                    related_object.contact_owners.filter(
-                        id=assigned_user.id
-                    ).exists()
-                )
-
-                if not is_contact_owner:
-
-                    raise serializers.ValidationError({
-                        "assigned_to":
-                            "Assigned user must be one "
-                            "of the lead's contact owners."
-                    })
+        self.validate_assigned_users(
+            module,
+            related_object,
+            assigned_users
+        )
 
         # ========================================
         # STORE INTERNAL VALUES
@@ -399,6 +562,7 @@ class TaskSerializer(serializers.ModelSerializer):
         attrs["_object_id"] = module_id
 
         if sender is not None:
+
             attrs["_sender"] = sender
 
         return attrs
@@ -423,6 +587,11 @@ class TaskSerializer(serializers.ModelSerializer):
         object_id = validated_data.pop(
             "_object_id",
             None
+        )
+
+        assigned_users = validated_data.pop(
+            "assigned_to",
+            []
         )
 
         request = self.context.get(
@@ -453,7 +622,10 @@ class TaskSerializer(serializers.ModelSerializer):
         # MODULE REQUIRED
         # ========================================
 
-        if content_type is None or object_id is None:
+        if (
+            content_type is None
+            or object_id is None
+        ):
 
             raise serializers.ValidationError({
                 "module":
@@ -462,6 +634,26 @@ class TaskSerializer(serializers.ModelSerializer):
 
         # ========================================
         # CREATE ACTIVITY
+        # ========================================
+        #
+        # This is the important part for
+        # Ticket Activity.
+        #
+        # Example:
+        #
+        # module = "ticket"
+        # module_id = 14
+        #
+        # Activity becomes:
+        #
+        # activity_type = "task"
+        # content_type = tickets.ticket
+        # object_id = 14
+        #
+        # Therefore:
+        # GET /activities/activity/ticket/14/
+        #
+        # will return this Task activity.
         # ========================================
 
         activity = Activity.objects.create(
@@ -479,6 +671,16 @@ class TaskSerializer(serializers.ModelSerializer):
             activity=activity,
             **validated_data
         )
+
+        # ========================================
+        # ASSIGN MULTIPLE USERS
+        # ========================================
+
+        if assigned_users:
+
+            task.assigned_to.set(
+                assigned_users
+            )
 
         return task
 
@@ -505,7 +707,30 @@ class TaskSerializer(serializers.ModelSerializer):
         )
 
         # ========================================
-        # UPDATE TASK
+        # ASSIGNED USERS
+        # ========================================
+        #
+        # None:
+        #   assigned_to was not supplied.
+        #
+        # []:
+        #   clear all assigned users.
+        #
+        # [1, 2]:
+        #   replace assigned users.
+        # ========================================
+
+        assigned_users_provided = (
+            "assigned_to" in validated_data
+        )
+
+        assigned_users = validated_data.pop(
+            "assigned_to",
+            None
+        )
+
+        # ========================================
+        # UPDATE TASK FIELDS
         # ========================================
 
         for attr, value in validated_data.items():
@@ -517,6 +742,16 @@ class TaskSerializer(serializers.ModelSerializer):
             )
 
         instance.save()
+
+        # ========================================
+        # UPDATE ASSIGNED USERS
+        # ========================================
+
+        if assigned_users_provided:
+
+            instance.assigned_to.set(
+                assigned_users or []
+            )
 
         # ========================================
         # UPDATE ACTIVITY
@@ -573,7 +808,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
         if (
             instance.activity
-            and instance.activity.object_id
+            and instance.activity.object_id is not None
         ):
 
             data["module_id"] = (
@@ -585,27 +820,22 @@ class TaskSerializer(serializers.ModelSerializer):
             data["module_id"] = None
 
         # ========================================
-        # ASSIGNED USER
+        # ASSIGNED USERS
         # ========================================
 
-        if instance.assigned_to:
-
-            data["assigned_to"] = {
-
-                "id": instance.assigned_to.id,
-
+        data["assigned_to"] = [
+            {
+                "id": user.id,
                 "name": (
-                    instance.assigned_to.get_full_name()
-                    or instance.assigned_to.email
+                    user.get_full_name()
+                    or user.email
                 )
             }
-
-        else:
-
-            data["assigned_to"] = None
+            for user in instance.assigned_to.all()
+        ]
 
         # ========================================
-        # REMOVE INPUT ONLY FIELD
+        # REMOVE INPUT-ONLY FIELD
         # ========================================
 
         data.pop(
@@ -614,4 +844,5 @@ class TaskSerializer(serializers.ModelSerializer):
         )
 
         return data
+
 

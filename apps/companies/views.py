@@ -1,3 +1,4 @@
+
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 
@@ -23,7 +24,6 @@ from .serializers import (
 def is_admin(user):
     """
     Admin users can access all companies.
-    Normal users can access only their own companies.
     """
 
     return (
@@ -47,7 +47,7 @@ class CompanyListCreateView(APIView):
     def get(self, request):
 
         # -------------------------------------------------
-        # USER-WISE ACCESS
+        # COMPANY ACCESS
         # -------------------------------------------------
 
         if is_admin(request.user):
@@ -57,10 +57,16 @@ class CompanyListCreateView(APIView):
 
         else:
 
-            # User -> only owned companies
-            companies = Company.objects.filter(
-                company_owner=request.user
-            ).order_by("-id")
+            # -------------------------------------------------
+            # NORMAL USERS
+            # -------------------------------------------------
+            # Show all companies.
+            #
+            # Company Owner can be any selected user
+            # such as Eshaan Muhammed, Saji jubi, etc.
+            # -------------------------------------------------
+
+            companies = Company.objects.all().order_by("-id")
 
         # -------------------------------------------------
         # SEARCH
@@ -71,9 +77,9 @@ class CompanyListCreateView(APIView):
 
         if search:
             companies = companies.filter(
-                Q(phone_number__icontains=search) |
-                Q(company_name__icontains=search) |
-                Q(email__icontains=search)
+                Q(phone_number__icontains=search)
+                | Q(company_name__icontains=search)
+                | Q(email__icontains=search)
             )
 
         # -------------------------------------------------
@@ -162,12 +168,19 @@ class CompanyListCreateView(APIView):
         if serializer.is_valid():
 
             # -------------------------------------------------
-            # Automatically assign logged-in user as owner
+            # IMPORTANT
+            # -------------------------------------------------
+            # Do NOT use:
+            #
+            # serializer.save(company_owner=request.user)
+            #
+            # because that would always make the logged-in
+            # user the company owner.
+            #
+            # The owner selected from the frontend is saved.
             # -------------------------------------------------
 
-            company = serializer.save(
-                company_owner=request.user
-            )
+            company = serializer.save()
 
             # -------------------------------------------------
             # NOTIFICATION
@@ -231,11 +244,16 @@ class CompanyDetailView(APIView):
 
         else:
 
-            # User -> only own company
+            # -------------------------------------------------
+            # NORMAL USER
+            # -------------------------------------------------
+            # Normal users can view any company.
+            # Company Owner can be another user.
+            # -------------------------------------------------
+
             company = get_object_or_404(
                 Company,
-                pk=pk,
-                company_owner=request.user
+                pk=pk
             )
 
         serializer = CompanyListSerializer(
@@ -263,7 +281,13 @@ class CompanyDetailView(APIView):
 
         else:
 
-            # User -> can update only own company
+            # -------------------------------------------------
+            # NORMAL USER
+            # -------------------------------------------------
+            # Keep owner-based update permission.
+            # Only the current company owner can update it.
+            # -------------------------------------------------
+
             company = get_object_or_404(
                 Company,
                 pk=pk,
@@ -322,7 +346,12 @@ class CompanyDetailView(APIView):
 
         else:
 
-            # User -> can delete only own company
+            # -------------------------------------------------
+            # NORMAL USER
+            # -------------------------------------------------
+            # Only the current company owner can delete it.
+            # -------------------------------------------------
+
             company = get_object_or_404(
                 Company,
                 pk=pk,

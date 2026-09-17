@@ -1,21 +1,24 @@
 
-
 from rest_framework import serializers
 
 from .models import Deal
 
 
-# ============================================================
-# CREATE / UPDATE DEAL SERIALIZER
-# ============================================================
+# =========================================================
+# DEAL CREATE / UPDATE SERIALIZER
+# =========================================================
 
 class DealCreateSerializer(serializers.ModelSerializer):
 
-    # Lead display name
     lead_name = serializers.SerializerMethodField()
-
-    # Lead phone number
     lead_phone = serializers.SerializerMethodField()
+
+    # Read-only owner details.
+    #
+    # IMPORTANT:
+    # deal_owners itself remains writable because the
+    # Deal Create/Edit page needs to send owner IDs.
+    deal_owner_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Deal
@@ -29,6 +32,7 @@ class DealCreateSerializer(serializers.ModelSerializer):
             "lead_phone",
             "amount",
             "deal_owners",
+            "deal_owner_details",
             "close_date",
             "priority",
             "created_date",
@@ -41,11 +45,12 @@ class DealCreateSerializer(serializers.ModelSerializer):
             "updated_at",
             "lead_name",
             "lead_phone",
+            "deal_owner_details",
         ]
 
-    # ========================================================
+    # ---------------------------------------------------------
     # LEAD NAME
-    # ========================================================
+    # ---------------------------------------------------------
 
     def get_lead_name(self, obj):
 
@@ -57,9 +62,9 @@ class DealCreateSerializer(serializers.ModelSerializer):
             f"{obj.associated_lead.last_name}"
         ).strip()
 
-    # ========================================================
+    # ---------------------------------------------------------
     # LEAD PHONE
-    # ========================================================
+    # ---------------------------------------------------------
 
     def get_lead_phone(self, obj):
 
@@ -68,111 +73,93 @@ class DealCreateSerializer(serializers.ModelSerializer):
 
         return obj.associated_lead.phone_number or ""
 
-    # ========================================================
-    # CREATE DEAL + CONVERT LEAD
-    # ========================================================
+    # ---------------------------------------------------------
+    # DEAL OWNER DETAILS
+    # ---------------------------------------------------------
+
+    def get_deal_owner_details(self, obj):
+
+        owners = obj.deal_owners.all()
+
+        return [
+            {
+                "id": owner.id,
+                "first_name": owner.first_name,
+                "last_name": owner.last_name,
+                "email": owner.email,
+            }
+            for owner in owners
+        ]
+
+    # ---------------------------------------------------------
+    # CREATE
+    # ---------------------------------------------------------
 
     def create(self, validated_data):
 
-        # ----------------------------------------------------
-        # Get the selected Lead
-        # ----------------------------------------------------
-
         lead = validated_data["associated_lead"]
 
-        # ----------------------------------------------------
-        # PREVENT DOUBLE CONVERSION
-        # ----------------------------------------------------
-
+        # Prevent creating another Deal from an already
+        # converted Lead.
         if lead.lead_status == "Converted":
 
-            raise serializers.ValidationError({
-                "associated_lead": "This lead is already converted."
-            })
+            raise serializers.ValidationError(
+                {
+                    "associated_lead": (
+                        "This lead is already converted."
+                    )
+                }
+            )
 
-        # ----------------------------------------------------
-        # Get selected Deal Owners
-        #
-        # ManyToMany fields cannot be passed directly into
-        # Deal.objects.create().
-        # ----------------------------------------------------
-
+        # Remove ManyToMany data before creating Deal.
         deal_owners = validated_data.pop(
             "deal_owners",
             []
         )
 
-        # ----------------------------------------------------
-        # CREATE DEAL
-        # ----------------------------------------------------
-
+        # Create Deal.
         deal = Deal.objects.create(
             **validated_data
         )
 
-        # ----------------------------------------------------
-        # SAVE MULTIPLE DEAL OWNERS
-        # ----------------------------------------------------
-
+        # Set Deal Owners.
         deal.deal_owners.set(
             deal_owners
         )
 
-        # ----------------------------------------------------
-        # CONVERT LEAD
-        #
-        # IMPORTANT:
-        # Lead status is ALWAYS "Converted".
-        #
-        # It does NOT become:
-        # Qualified to Buy
-        # Contract Sent
-        # Closed Won
-        # etc.
-        # ----------------------------------------------------
-
+        # Mark Lead as Converted.
         lead.lead_status = "Converted"
 
         lead.save(
-            update_fields=["lead_status"]
+            update_fields=[
+                "lead_status"
+            ]
         )
 
         return deal
 
-    # ========================================================
-    # UPDATE DEAL
-    # ========================================================
+    # ---------------------------------------------------------
+    # UPDATE
+    # ---------------------------------------------------------
 
     def update(self, instance, validated_data):
 
-        # ----------------------------------------------------
-        # Get Deal Owners separately
-        # ----------------------------------------------------
-
+        # Get owners if supplied.
+        #
+        # None means the frontend did not send
+        # deal_owners, so keep the existing owners.
         deal_owners = validated_data.pop(
             "deal_owners",
             None
         )
 
-        # ----------------------------------------------------
-        # UPDATE DEAL
-        #
-        # IMPORTANT:
-        # Changing Deal stage must NOT change Lead status.
-        # ----------------------------------------------------
-
+        # Update normal Deal fields.
         instance = super().update(
             instance,
             validated_data
         )
 
-        # ----------------------------------------------------
-        # UPDATE MULTIPLE DEAL OWNERS
-        #
-        # Only update owners when the field was actually
-        # supplied in the request.
-        # ----------------------------------------------------
-
+        # Update Deal Owners only when supplied.
         if deal_owners is not None:
 
             instance.deal_owners.set(
@@ -182,27 +169,33 @@ class DealCreateSerializer(serializers.ModelSerializer):
         return instance
 
 
-# ============================================================
-# DEAL LIST SERIALIZER
-# ============================================================
+# =========================================================
+# DEAL LIST / DETAIL SERIALIZER
+# =========================================================
 
 class DealListSerializer(serializers.ModelSerializer):
 
-    # Lead display name
     lead_name = serializers.SerializerMethodField()
-
-    # Lead phone number
     lead_phone = serializers.SerializerMethodField()
 
-    # Deal owner display names
+    # Existing Deal owner names.
     deal_owners = serializers.SerializerMethodField()
 
-    # Owner IDs for Edit
+    # Existing Deal owner IDs.
     deal_owner_ids = serializers.PrimaryKeyRelatedField(
         source="deal_owners",
         many=True,
         read_only=True
     )
+
+    # ---------------------------------------------------------
+    # NEW
+    #
+    # Used by Create Ticket Drawer to show only the owners
+    # of the selected Closed Won Deal.
+    # ---------------------------------------------------------
+
+    deal_owner_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Deal
@@ -217,14 +210,15 @@ class DealListSerializer(serializers.ModelSerializer):
             "close_date",
             "deal_owners",
             "deal_owner_ids",
+            "deal_owner_details",
             "amount",
             "priority",
             "created_date",
         ]
 
-    # ========================================================
+    # ---------------------------------------------------------
     # LEAD NAME
-    # ========================================================
+    # ---------------------------------------------------------
 
     def get_lead_name(self, obj):
 
@@ -236,9 +230,9 @@ class DealListSerializer(serializers.ModelSerializer):
             f"{obj.associated_lead.last_name}"
         ).strip()
 
-    # ========================================================
+    # ---------------------------------------------------------
     # LEAD PHONE
-    # ========================================================
+    # ---------------------------------------------------------
 
     def get_lead_phone(self, obj):
 
@@ -247,9 +241,9 @@ class DealListSerializer(serializers.ModelSerializer):
 
         return obj.associated_lead.phone_number or ""
 
-    # ========================================================
-    # OWNER NAMES
-    # ========================================================
+    # ---------------------------------------------------------
+    # DEAL OWNER NAMES
+    # ---------------------------------------------------------
 
     def get_deal_owners(self, obj):
 
@@ -260,6 +254,24 @@ class DealListSerializer(serializers.ModelSerializer):
                 f"{owner.first_name} "
                 f"{owner.last_name}"
             ).strip()
+            for owner in owners
+        ]
+
+    # ---------------------------------------------------------
+    # DEAL OWNER DETAILS
+    # ---------------------------------------------------------
+
+    def get_deal_owner_details(self, obj):
+
+        owners = obj.deal_owners.all()
+
+        return [
+            {
+                "id": owner.id,
+                "first_name": owner.first_name,
+                "last_name": owner.last_name,
+                "email": owner.email,
+            }
             for owner in owners
         ]
 

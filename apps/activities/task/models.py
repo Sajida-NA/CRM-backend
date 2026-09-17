@@ -1,6 +1,4 @@
 
-
-
 from django.conf import settings
 from django.db import models
 
@@ -56,13 +54,23 @@ class Task(models.Model):
     )
 
     # -------------------------
-    # Assigned user
+    # Assigned users
+    # -------------------------
+    #
+    # A task can be assigned to
+    # multiple users.
+    #
+    # Example:
+    #
+    # assigned_to:
+    #   Riya
+    #   Ahmed
+    #
     # -------------------------
 
-    assigned_to = models.ForeignKey(
+    assigned_to = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
+        blank=True,
         related_name="assigned_tasks"
     )
 

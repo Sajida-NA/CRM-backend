@@ -1,5 +1,4 @@
 
-
 from rest_framework import serializers
 from django.utils.html import strip_tags
 from html import unescape
@@ -135,7 +134,6 @@ class ActivitySerializer(serializers.ModelSerializer):
                 "updated_at": call.updated_at,
             }
 
-        
         # ==========================================
         # TASK
         # ==========================================
@@ -155,24 +153,22 @@ class ActivitySerializer(serializers.ModelSerializer):
                 "due_date": task.due_date,
 
                 "time": task.time,
+
                 "task_type": task.task_type,
 
                 "priority": task.priority,
 
-                "assigned_to": (
+                # ManyToManyField
+                "assigned_to": [
                     {
-                        "id": task.assigned_to.id,
-
+                        "id": user.id,
                         "name": (
-                            task.assigned_to.get_full_name()
-                            or task.assigned_to.email
+                            user.get_full_name()
+                            or user.email
                         ),
                     }
-
-                     if task.assigned_to
-
-                    else None
-                ),
+                    for user in task.assigned_to.all()
+                ],
 
                 "note": self.get_plain_text(
                     task.note
@@ -181,8 +177,7 @@ class ActivitySerializer(serializers.ModelSerializer):
                 "created_at": task.created_at,
 
                 "updated_at": task.updated_at,
-            }  
-        
+            }
 
         # ==========================================
         # EMAIL
@@ -223,7 +218,6 @@ class ActivitySerializer(serializers.ModelSerializer):
 
                 recipient = email.to_recipients[0]
 
-            
             return {
                 "id": email.id,
 
@@ -283,3 +277,4 @@ class ActivitySerializer(serializers.ModelSerializer):
         # ==========================================
 
         return None
+

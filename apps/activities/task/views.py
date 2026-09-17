@@ -1,11 +1,11 @@
 
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from django.contrib.auth import get_user_model
-from django.contrib.contenttypes.models import ContentType
 
 from .models import Task
 from .serializers import TaskSerializer
@@ -36,6 +36,8 @@ class TaskListCreateView(APIView):
                 "activity",
                 "activity__created_by",
                 "activity__content_type",
+            )
+            .prefetch_related(
                 "assigned_to",
             )
             .all()
@@ -120,51 +122,179 @@ class TaskOptionsView(APIView):
         ]
 
         # ====================================
-        # USERS
+        # MODULE
         # ====================================
 
-        module = request.query_params.get("module")
-        module_id = request.query_params.get("module_id")
+        module = (
+            request.query_params
+            .get("module", "")
+            .lower()
+            .strip()
+        )
+
+        module_id = request.query_params.get(
+            "module_id"
+        )
+
+        # ====================================
+        # DEFAULT USERS
+        # ====================================
 
         users = User.objects.filter(
             is_active=True
         )
 
-        # ------------------------------------
+        # ====================================
         # LEAD TASK
-        # ------------------------------------
+        # ====================================
         #
-        # If Task is being created for a Lead,
-        # only that Lead's contact owners should
-        # appear in Assigned To.
+        # Assigned To = Lead Contact Owners
         #
         # Example:
         #
-        # /task/options/?module=lead&module_id=39
+        # Lead Contact Owners:
+        #   Riya
+        #   Ahmed
         #
-        # ------------------------------------
+        # Assigned To:
+        #   Riya
+        #   Ahmed
+        #
+        # No other users.
+        # ====================================
 
         if module == "lead" and module_id:
 
             try:
+
                 from apps.leads.models import Lead
 
                 lead = (
                     Lead.objects
-                    .prefetch_related("contact_owners")
+                    .prefetch_related(
+                        "contact_owners"
+                    )
                     .get(pk=module_id)
                 )
 
-                users = lead.contact_owners.filter(
-                    is_active=True
-                ).order_by(
-                    "first_name",
-                    "last_name",
+                users = (
+                    lead.contact_owners
+                    .filter(
+                        is_active=True
+                    )
+                    .order_by(
+                        "first_name",
+                        "last_name",
+                    )
                 )
 
             except Lead.DoesNotExist:
 
                 users = User.objects.none()
+
+        # ====================================
+        # DEAL TASK
+        # ====================================
+        #
+        # Assigned To = Deal Owners
+        #
+        # Example:
+        #
+        # Deal Owners:
+        #   Riya
+        #   Ahmed
+        #
+        # Assigned To:
+        #   Riya
+        #   Ahmed
+        #
+        # No other users.
+        # ====================================
+
+        elif module == "deal" and module_id:
+
+            try:
+
+                from apps.deals.models import Deal
+
+                deal = (
+                    Deal.objects
+                    .prefetch_related(
+                        "deal_owners"
+                    )
+                    .get(pk=module_id)
+                )
+
+                users = (
+                    deal.deal_owners
+                    .filter(
+                        is_active=True
+                    )
+                    .order_by(
+                        "first_name",
+                        "last_name",
+                    )
+                )
+
+            except Deal.DoesNotExist:
+
+                users = User.objects.none()
+
+        # ====================================
+        # TICKET TASK
+        # ====================================
+        #
+        # Assigned To = Ticket Owners
+        #
+        # Example:
+        #
+        # Ticket Owners:
+        #   Riya
+        #   Ahmed
+        #
+        # Assigned To:
+        #   Riya
+        #   Ahmed
+        #
+        # No other users.
+        # ====================================
+
+        elif module == "ticket" and module_id:
+
+            try:
+
+                from apps.tickets.models import Ticket
+
+                ticket = (
+                    Ticket.objects
+                    .prefetch_related(
+                        "ticket_owners"
+                    )
+                    .get(pk=module_id)
+                )
+
+                users = (
+                    ticket.ticket_owners
+                    .filter(
+                        is_active=True
+                    )
+                    .order_by(
+                        "first_name",
+                        "last_name",
+                    )
+                )
+
+            except Ticket.DoesNotExist:
+
+                users = User.objects.none()
+
+        # ====================================
+        # OTHER MODULES
+        # ====================================
+        #
+        # Keep existing behavior for Company
+        # and other modules.
+        # ====================================
 
         else:
 
@@ -172,6 +302,10 @@ class TaskOptionsView(APIView):
                 "first_name",
                 "last_name",
             )
+
+        # ====================================
+        # ASSIGNED USERS RESPONSE
+        # ====================================
 
         assigned_users = [
             {
@@ -216,6 +350,8 @@ class TaskDetailView(APIView):
                     "activity",
                     "activity__created_by",
                     "activity__content_type",
+                )
+                .prefetch_related(
                     "assigned_to",
                 )
                 .get(pk=pk)
@@ -369,4 +505,3 @@ class TaskDetailView(APIView):
         return Response(
             status=status.HTTP_204_NO_CONTENT
         )
-

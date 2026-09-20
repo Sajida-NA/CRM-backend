@@ -1,5 +1,3 @@
-
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -22,13 +20,9 @@ from apps.tickets.models import Ticket
 
 from apps.notifications.models import Notification
 
-# If these models exist in your project,
-# import them here.
-# from apps.companies.models import Company
-# from apps.tickets.models import Ticket
-
 
 User = get_user_model()
+
 
 # =====================================================
 # GET RECIPIENT DETAILS
@@ -64,8 +58,16 @@ def get_recipient_details(module, object_id):
 
         return {
             "id": company.id,
-            "name": company.company_name,
-            "email": company.email,
+            "name": getattr(
+                company,
+                "company_name",
+                None
+            ),
+            "email": getattr(
+                company,
+                "email",
+                None
+            ),
         }
 
     # =================================================
@@ -79,6 +81,13 @@ def get_recipient_details(module, object_id):
         ).get(pk=object_id)
 
         lead = deal.associated_lead
+
+        if not lead:
+            return {
+                "id": deal.id,
+                "name": None,
+                "email": None,
+            }
 
         return {
             "id": deal.id,
@@ -98,9 +107,23 @@ def get_recipient_details(module, object_id):
             "associated_deal__associated_lead"
         ).get(pk=object_id)
 
-        lead = (
-            ticket.associated_deal.associated_lead
-        )
+        deal = ticket.associated_deal
+
+        if not deal:
+            return {
+                "id": ticket.id,
+                "name": None,
+                "email": None,
+            }
+
+        lead = deal.associated_lead
+
+        if not lead:
+            return {
+                "id": ticket.id,
+                "name": None,
+                "email": None,
+            }
 
         return {
             "id": ticket.id,
@@ -113,13 +136,17 @@ def get_recipient_details(module, object_id):
     raise ValueError("Invalid module")
 
 
+# =====================================================
+# EMAIL LIST + CREATE
+# =====================================================
+
 class EmailListCreateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # ==========================================
+    # =================================================
     # GET
-    # ==========================================
+    # =================================================
 
     def get(self, request):
 
@@ -140,23 +167,23 @@ class EmailListCreateView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # ==========================================
+    # =================================================
     # POST
-    # ==========================================
+    # =================================================
 
     def post(self, request):
 
-        # --------------------------------------
+        # ---------------------------------------------
         # Get request data
-        # --------------------------------------
+        # ---------------------------------------------
 
         sender_id = request.data.get("sender_id")
         module = request.data.get("module")
         recipient_id = request.data.get("recipient_id")
 
-        # --------------------------------------
-        # Validate sender_id
-        # --------------------------------------
+        # ---------------------------------------------
+        # Validate sender
+        # ---------------------------------------------
 
         if not sender_id:
 
@@ -177,14 +204,17 @@ class EmailListCreateView(APIView):
 
             return Response(
                 {
-                    "error": f"User with id {sender_id} not found."
+                    "error": (
+                        f"User with id "
+                        f"{sender_id} not found."
+                    )
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # --------------------------------------
+        # ---------------------------------------------
         # Validate module
-        # --------------------------------------
+        # ---------------------------------------------
 
         if not module:
 
@@ -216,9 +246,9 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --------------------------------------
-        # Validate recipient_id
-        # --------------------------------------
+        # ---------------------------------------------
+        # Validate recipient ID
+        # ---------------------------------------------
 
         if not recipient_id:
 
@@ -229,9 +259,9 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --------------------------------------
+        # ---------------------------------------------
         # Select CRM model
-        # --------------------------------------
+        # ---------------------------------------------
 
         if module == "lead":
 
@@ -243,19 +273,15 @@ class EmailListCreateView(APIView):
 
         elif module == "company":
 
-            from apps.companies.models import Company
-
             model = Company
 
         elif module == "ticket":
 
-            from apps.tickets.models import Ticket
-
             model = Ticket
 
-        # --------------------------------------
-        # Get recipient CRM object
-        # --------------------------------------
+        # ---------------------------------------------
+        # Get related CRM object
+        # ---------------------------------------------
 
         try:
 
@@ -275,16 +301,16 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # --------------------------------------
-        # Get recipient name and email
-        # --------------------------------------
+        # ---------------------------------------------
+        # Get recipient name + email
+        # ---------------------------------------------
 
         recipient_name = None
         recipient_email = None
 
-        # --------------------------------------
-        # Lead
-        # --------------------------------------
+        # =================================================
+        # LEAD
+        # =================================================
 
         if module == "lead":
 
@@ -295,9 +321,9 @@ class EmailListCreateView(APIView):
 
             recipient_email = related_object.email
 
-        # --------------------------------------
-        # Deal
-        # --------------------------------------
+        # =================================================
+        # DEAL
+        # =================================================
 
         elif module == "deal":
 
@@ -312,15 +338,15 @@ class EmailListCreateView(APIView):
 
                 recipient_email = lead.email
 
-        # --------------------------------------
-        # Company
-        # --------------------------------------
+        # =================================================
+        # COMPANY
+        # =================================================
 
         elif module == "company":
 
             recipient_name = getattr(
                 related_object,
-                "name",
+                "company_name",
                 None
             )
 
@@ -330,32 +356,41 @@ class EmailListCreateView(APIView):
                 None
             )
 
-        # --------------------------------------
+        # =================================================
+        # TICKET
+        # =================================================
+        #
+        # IMPORTANT:
+        # Ticket customer comes from:
+        #
         # Ticket
-        # --------------------------------------
+        #   -> associated_deal
+        #       -> associated_lead
+        #           -> email
+        #
+        # Do NOT use ticket_owner here.
+        # =================================================
 
         elif module == "ticket":
 
-            ticket_owner = getattr(
-                related_object,
-                "ticket_owner",
-                None
-            )
+            deal = related_object.associated_deal
 
-            if ticket_owner:
+            if deal:
 
-                recipient_name = (
-                    ticket_owner.get_full_name()
-                    or ticket_owner.email
-                )
+                lead = deal.associated_lead
 
-                recipient_email = (
-                    ticket_owner.email
-                )
+                if lead:
 
-        # --------------------------------------
-        # Make sure recipient has email
-        # --------------------------------------
+                    recipient_name = (
+                        f"{lead.first_name} "
+                        f"{lead.last_name}"
+                    ).strip()
+
+                    recipient_email = lead.email
+
+        # ---------------------------------------------
+        # Validate recipient email
+        # ---------------------------------------------
 
         if not recipient_email:
 
@@ -370,9 +405,9 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --------------------------------------
-        # Validate email fields
-        # --------------------------------------
+        # ---------------------------------------------
+        # Email fields
+        # ---------------------------------------------
 
         subject = request.data.get(
             "subject",
@@ -412,17 +447,17 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --------------------------------------
-        # Create ContentType
-        # --------------------------------------
+        # ---------------------------------------------
+        # ContentType
+        # ---------------------------------------------
 
         content_type = ContentType.objects.get_for_model(
             model
         )
 
-        # --------------------------------------
+        # ---------------------------------------------
         # Create Activity
-        # --------------------------------------
+        # ---------------------------------------------
 
         activity = Activity.objects.create(
             activity_type="email",
@@ -431,9 +466,9 @@ class EmailListCreateView(APIView):
             object_id=related_object.pk
         )
 
-        # --------------------------------------
-        # Create recipient data
-        # --------------------------------------
+        # ---------------------------------------------
+        # Recipient JSON
+        # ---------------------------------------------
 
         to_recipients = [
             {
@@ -443,9 +478,9 @@ class EmailListCreateView(APIView):
             }
         ]
 
-        # --------------------------------------
-        # Convert CC emails
-        # --------------------------------------
+        # ---------------------------------------------
+        # Convert CC
+        # ---------------------------------------------
 
         cc_emails = []
 
@@ -464,11 +499,14 @@ class EmailListCreateView(APIView):
 
             elif isinstance(recipient, str):
 
-                cc_emails.append(recipient)
+                if recipient.strip():
+                    cc_emails.append(
+                        recipient.strip()
+                    )
 
-        # --------------------------------------
-        # Convert BCC emails
-        # --------------------------------------
+        # ---------------------------------------------
+        # Convert BCC
+        # ---------------------------------------------
 
         bcc_emails = []
 
@@ -487,11 +525,14 @@ class EmailListCreateView(APIView):
 
             elif isinstance(recipient, str):
 
-                bcc_emails.append(recipient)
+                if recipient.strip():
+                    bcc_emails.append(
+                        recipient.strip()
+                    )
 
-        # --------------------------------------
-        # Create Email object
-        # --------------------------------------
+        # ---------------------------------------------
+        # Create Email
+        # ---------------------------------------------
 
         email = Email.objects.create(
             activity=activity,
@@ -503,9 +544,9 @@ class EmailListCreateView(APIView):
             status="draft"
         )
 
-        # --------------------------------------
-        # Send email
-        # --------------------------------------
+        # ---------------------------------------------
+        # Send Email
+        # ---------------------------------------------
 
         try:
 
@@ -522,9 +563,9 @@ class EmailListCreateView(APIView):
                 fail_silently=False
             )
 
-            # ----------------------------------
+            # -----------------------------------------
             # Success
-            # ----------------------------------
+            # -----------------------------------------
 
             email.status = "sent"
 
@@ -543,14 +584,17 @@ class EmailListCreateView(APIView):
             Notification.objects.create(
                 user=request.user,
                 title="Email Sent",
-                message=f"Email '{email.subject}' has been sent successfully.",
+                message=(
+                    f"Email '{email.subject}' "
+                    f"has been sent successfully."
+                ),
             )
 
         except Exception as e:
 
-            # ----------------------------------
+            # -----------------------------------------
             # Failed
-            # ----------------------------------
+            # -----------------------------------------
 
             email.status = "failed"
 
@@ -569,12 +613,15 @@ class EmailListCreateView(APIView):
             Notification.objects.create(
                 user=request.user,
                 title="Email Failed",
-                message=f"Email '{email.subject}' failed to send.",
+                message=(
+                    f"Email '{email.subject}' "
+                    f"failed to send."
+                ),
             )
 
-        # --------------------------------------
+        # ---------------------------------------------
         # Response
-        # --------------------------------------
+        # ---------------------------------------------
 
         response_serializer = EmailSerializer(
             email
@@ -586,13 +633,13 @@ class EmailListCreateView(APIView):
         )
 
 
+# =====================================================
+# EMAIL DETAIL
+# =====================================================
+
 class EmailDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
-
-    # ==========================================
-    # Get email
-    # ==========================================
 
     def get_object(self, pk):
 
@@ -609,9 +656,9 @@ class EmailDetailView(APIView):
 
             return None
 
-    # ==========================================
+    # =================================================
     # GET
-    # ==========================================
+    # =================================================
 
     def get(self, request, pk):
 
@@ -635,9 +682,9 @@ class EmailDetailView(APIView):
             status=status.HTTP_200_OK
         )
 
-    # ==========================================
+    # =================================================
     # PUT
-    # ==========================================
+    # =================================================
 
     def put(self, request, pk):
 
@@ -663,9 +710,12 @@ class EmailDetailView(APIView):
             serializer.save()
 
             Notification.objects.create(
-               user=request.user,
-               title="Email Updated",
-               message=f"Email '{email.subject}' has been updated.",
+                user=request.user,
+                title="Email Updated",
+                message=(
+                    f"Email '{email.subject}' "
+                    f"has been updated."
+                ),
             )
 
             return Response(
@@ -678,9 +728,9 @@ class EmailDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # ==========================================
+    # =================================================
     # DELETE
-    # ==========================================
+    # =================================================
 
     def delete(self, request, pk):
 
@@ -700,9 +750,12 @@ class EmailDetailView(APIView):
         email.delete()
 
         Notification.objects.create(
-           user=request.user,
-           title="Email Deleted",
-           message=f"Email '{email_subject}' has been deleted.",
+            user=request.user,
+            title="Email Deleted",
+            message=(
+                f"Email '{email_subject}' "
+                f"has been deleted."
+            ),
         )
 
         return Response(
@@ -712,6 +765,10 @@ class EmailDetailView(APIView):
             status=status.HTTP_204_NO_CONTENT
         )
 
+
+# =====================================================
+# EMAIL RECIPIENT
+# =====================================================
 
 class EmailRecipientView(APIView):
 
@@ -743,6 +800,19 @@ class EmailRecipientView(APIView):
                 module,
                 object_id
             )
+
+            if not recipient.get("email"):
+
+                return Response(
+                    {
+                        "error": (
+                            f"{module} with id "
+                            f"{object_id} does not have "
+                            f"a recipient email."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             return Response(
                 recipient,

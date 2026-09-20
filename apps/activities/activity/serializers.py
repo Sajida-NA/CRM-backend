@@ -1,4 +1,3 @@
-
 from rest_framework import serializers
 from django.utils.html import strip_tags
 from html import unescape
@@ -107,7 +106,13 @@ class ActivitySerializer(serializers.ModelSerializer):
 
             return {
                 "id": note.id,
-                "note": self.get_plain_text(note.note),
+
+                # IMPORTANT:
+                # Preserve rich-text HTML so formatting
+                # like bold, italic, underline, lists, etc.
+                # is available in Activity Timeline.
+                "note": note.note or "",
+
                 "created_at": note.created_at,
                 "updated_at": note.updated_at,
             }
@@ -277,4 +282,3 @@ class ActivitySerializer(serializers.ModelSerializer):
         # ==========================================
 
         return None
-

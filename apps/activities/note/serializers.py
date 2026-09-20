@@ -1,7 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.utils.html import strip_tags
 
 from rest_framework import serializers
 
@@ -71,17 +70,6 @@ class NoteSerializer(serializers.ModelSerializer):
         ]
 
     # =================================================
-    # CLEAN HTML
-    # =================================================
-
-    def get_plain_text(self, value):
-
-        if not value:
-            return ""
-
-        return strip_tags(value).strip()
-
-    # =================================================
     # VALIDATION
     # =================================================
 
@@ -96,6 +84,7 @@ class NoteSerializer(serializers.ModelSerializer):
         # =================================================
 
         if sender_id is None:
+
             raise serializers.ValidationError({
                 "sender_id": "This field is required."
             })
@@ -325,6 +314,9 @@ class NoteSerializer(serializers.ModelSerializer):
 
         if "note" in validated_data:
 
+            # IMPORTANT:
+            # Keep HTML formatting exactly as
+            # received from the editor.
             instance.note = validated_data["note"]
 
             instance.save()
@@ -364,7 +356,10 @@ class NoteSerializer(serializers.ModelSerializer):
         related_object
     ):
 
+        # =================================================
         # LEAD
+        # =================================================
+
         if hasattr(
             related_object,
             "first_name"
@@ -393,32 +388,48 @@ class NoteSerializer(serializers.ModelSerializer):
             if full_name:
                 return full_name
 
+        # =================================================
         # DEAL
+        # =================================================
+
         if hasattr(
             related_object,
             "deal_name"
         ):
+
             return related_object.deal_name
 
+        # =================================================
         # COMPANY
+        # =================================================
+
         if hasattr(
             related_object,
             "company_name"
         ):
+
             return related_object.company_name
 
+        # =================================================
         # NAME FALLBACK
+        # =================================================
+
         if hasattr(
             related_object,
             "name"
         ):
+
             return related_object.name
 
+        # =================================================
         # TICKET
+        # =================================================
+
         if hasattr(
             related_object,
             "title"
         ):
+
             return related_object.title
 
         return str(related_object)
@@ -439,13 +450,19 @@ class NoteSerializer(serializers.ModelSerializer):
         # =================================================
         # IMPORTANT
         # =================================================
-        # Clean the note HTML before sending
-        # response to React.
+        # DO NOT use strip_tags() here.
+        #
+        # The editor sends HTML such as:
+        #
+        # <strong>Bold</strong>
+        # <em>Italic</em>
+        # <u>Underline</u>
+        #
+        # We must return that HTML to React so that
+        # NoteDetails can render the formatting.
         # =================================================
 
-        data["note"] = self.get_plain_text(
-            instance.note
-        )
+        data["note"] = instance.note or ""
 
         # =================================================
         # ACTIVITY

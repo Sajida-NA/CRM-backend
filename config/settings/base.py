@@ -39,11 +39,6 @@ DEBUG = config("DEBUG", cast=bool)
 
 # ALLOWED_HOSTS = []
 
-ALLOWED_HOSTS = [
-    "crm-qi8c.onrender.com",
-    "localhost",
-    "127.0.0.1",
-]
 
 ROOT_URLCONF = "config.urls"
 
@@ -96,11 +91,23 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
+
+
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://crm-frontend-s67r.onrender.com",
+]
 
-     "https://crm-frontend-mkkh.onrender.com",
-    ]
+ALLOWED_HOSTS = [
+    "crm-backend-8qts.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
+
+
 
 
 ROOT_URLCONF = 'config.urls'

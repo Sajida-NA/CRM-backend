@@ -2956,4 +2956,5 @@ class EmailRecipientView(APIView):
                     "error_type": type(e).__name__,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                
             )

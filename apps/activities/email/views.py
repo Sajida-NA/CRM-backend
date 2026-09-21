@@ -1832,77 +1832,202 @@ User = get_user_model()
 # ============================================================
 
 def get_recipient_details(module, object_id):
-    """
-    Get recipient name and email from Lead / Deal / Company / Ticket.
-    """
+
+    module = str(module).strip().lower()
+
+    print("")
+    print("==========================================")
+    print("RECIPIENT LOOKUP")
+    print("MODULE:", module)
+    print("OBJECT ID:", object_id)
+    print("==========================================")
+
+    # ========================================================
+    # LEAD
+    # ========================================================
 
     if module == "lead":
+
         obj = Lead.objects.get(id=object_id)
 
-        name = f"{obj.first_name or ''} {obj.last_name or ''}".strip()
+        email = getattr(obj, "email", None)
+
+        first_name = getattr(obj, "first_name", "") or ""
+        last_name = getattr(obj, "last_name", "") or ""
+
+        name = f"{first_name} {last_name}".strip()
+
+        print("LEAD NAME:", name)
+        print("LEAD EMAIL:", email)
 
         return {
             "name": name,
-            "email": obj.email,
+            "email": email,
             "object": obj,
         }
+
+    # ========================================================
+    # COMPANY
+    # ========================================================
 
     elif module == "company":
+
         obj = Company.objects.get(id=object_id)
 
+        email = getattr(obj, "email", None)
+
+        company_name = getattr(
+            obj,
+            "company_name",
+            ""
+        ) or ""
+
+        print("COMPANY NAME:", company_name)
+        print("COMPANY EMAIL:", email)
+
         return {
-            "name": obj.company_name,
-            "email": getattr(obj, "email", None),
+            "name": company_name,
+            "email": email,
             "object": obj,
         }
 
+    # ========================================================
+    # DEAL
+    # ========================================================
+
     elif module == "deal":
-        obj = Deal.objects.select_related("associated_lead").get(
+
+        obj = Deal.objects.select_related(
+            "associated_lead"
+        ).get(
             id=object_id
         )
 
-        lead = obj.associated_lead
+        lead = getattr(
+            obj,
+            "associated_lead",
+            None
+        )
 
         if not lead:
+
+            print("DEAL HAS NO ASSOCIATED LEAD")
+
             return {
                 "name": "",
                 "email": None,
                 "object": obj,
             }
 
-        name = f"{lead.first_name or ''} {lead.last_name or ''}".strip()
+        first_name = getattr(
+            lead,
+            "first_name",
+            ""
+        ) or ""
+
+        last_name = getattr(
+            lead,
+            "last_name",
+            ""
+        ) or ""
+
+        name = f"{first_name} {last_name}".strip()
+
+        email = getattr(
+            lead,
+            "email",
+            None
+        )
+
+        print("DEAL LEAD NAME:", name)
+        print("DEAL LEAD EMAIL:", email)
 
         return {
             "name": name,
-            "email": lead.email,
+            "email": email,
             "object": obj,
         }
+
+    # ========================================================
+    # TICKET
+    # ========================================================
 
     elif module == "ticket":
+
         obj = Ticket.objects.select_related(
             "associated_deal__associated_lead"
-        ).get(id=object_id)
+        ).get(
+            id=object_id
+        )
 
-        deal = obj.associated_deal
+        deal = getattr(
+            obj,
+            "associated_deal",
+            None
+        )
 
-        if not deal or not deal.associated_lead:
+        if not deal:
+
+            print("TICKET HAS NO ASSOCIATED DEAL")
+
             return {
                 "name": "",
                 "email": None,
                 "object": obj,
             }
 
-        lead = deal.associated_lead
+        lead = getattr(
+            deal,
+            "associated_lead",
+            None
+        )
 
-        name = f"{lead.first_name or ''} {lead.last_name or ''}".strip()
+        if not lead:
+
+            print("TICKET DEAL HAS NO ASSOCIATED LEAD")
+
+            return {
+                "name": "",
+                "email": None,
+                "object": obj,
+            }
+
+        first_name = getattr(
+            lead,
+            "first_name",
+            ""
+        ) or ""
+
+        last_name = getattr(
+            lead,
+            "last_name",
+            ""
+        ) or ""
+
+        name = f"{first_name} {last_name}".strip()
+
+        email = getattr(
+            lead,
+            "email",
+            None
+        )
+
+        print("TICKET LEAD NAME:", name)
+        print("TICKET LEAD EMAIL:", email)
 
         return {
             "name": name,
-            "email": lead.email,
+            "email": email,
             "object": obj,
         }
 
-    raise ValueError(f"Invalid module: {module}")
+    # ========================================================
+    # INVALID MODULE
+    # ========================================================
+
+    raise ValueError(
+        f"Invalid module: {module}"
+    )
 
 
 # ============================================================
@@ -1913,46 +2038,85 @@ class EmailListCreateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # --------------------------------------------------------
-    # GET EMAIL HISTORY
-    # --------------------------------------------------------
+    # ========================================================
+    # GET EMAIL LIST
+    # ========================================================
 
     def get(self, request):
 
-        emails = Email.objects.all().order_by(
-            "-activity__created_at"
-        )
+        try:
 
-        serializer = EmailSerializer(
-            emails,
-            many=True
-        )
+            emails = Email.objects.all().order_by(
+                "-activity__created_at"
+            )
 
-        return Response(serializer.data)
+            serializer = EmailSerializer(
+                emails,
+                many=True
+            )
 
-    # --------------------------------------------------------
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+
+            print("EMAIL LIST ERROR:", str(e))
+            traceback.print_exc()
+
+            return Response(
+                {
+                    "error": "Could not load emails.",
+                    "details": str(e),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    # ========================================================
     # SEND EMAIL
-    # --------------------------------------------------------
+    # ========================================================
 
     def post(self, request):
 
         data = request.data
 
-        sender_id = data.get("sender_id")
-        module = data.get("module")
-        recipient_id = data.get("recipient_id")
+        sender_id = data.get(
+            "sender_id"
+        )
 
-        subject = data.get("subject")
-        body = data.get("body")
+        module = data.get(
+            "module"
+        )
 
-        cc_emails = data.get("cc", [])
-        bcc_emails = data.get("bcc", [])
+        recipient_id = data.get(
+            "recipient_id"
+        )
+
+        subject = data.get(
+            "subject"
+        )
+
+        body = data.get(
+            "body"
+        )
+
+        cc_emails = data.get(
+            "cc",
+            []
+        )
+
+        bcc_emails = data.get(
+            "bcc",
+            []
+        )
 
         # ====================================================
-        # BASIC VALIDATION
+        # VALIDATION
         # ====================================================
 
         if not sender_id:
+
             return Response(
                 {
                     "error": "sender_id is required."
@@ -1961,6 +2125,7 @@ class EmailListCreateView(APIView):
             )
 
         if not module:
+
             return Response(
                 {
                     "error": "module is required."
@@ -1969,6 +2134,7 @@ class EmailListCreateView(APIView):
             )
 
         if not recipient_id:
+
             return Response(
                 {
                     "error": "recipient_id is required."
@@ -1977,6 +2143,7 @@ class EmailListCreateView(APIView):
             )
 
         if not subject:
+
             return Response(
                 {
                     "error": "Subject is required."
@@ -1985,6 +2152,7 @@ class EmailListCreateView(APIView):
             )
 
         if not body:
+
             return Response(
                 {
                     "error": "Email body is required."
@@ -1993,10 +2161,11 @@ class EmailListCreateView(APIView):
             )
 
         # ====================================================
-        # VALIDATE SENDER
+        # GET SENDER
         # ====================================================
 
         try:
+
             sender = User.objects.get(
                 id=sender_id
             )
@@ -2011,7 +2180,7 @@ class EmailListCreateView(APIView):
             )
 
         # ====================================================
-        # VALIDATE MODULE
+        # VALID MODULES
         # ====================================================
 
         valid_modules = [
@@ -2020,6 +2189,10 @@ class EmailListCreateView(APIView):
             "company",
             "ticket",
         ]
+
+        module = str(
+            module
+        ).strip().lower()
 
         if module not in valid_modules:
 
@@ -2031,7 +2204,7 @@ class EmailListCreateView(APIView):
             )
 
         # ====================================================
-        # GET RECIPIENT
+        # GET RECIPIENT DETAILS
         # ====================================================
 
         try:
@@ -2041,8 +2214,13 @@ class EmailListCreateView(APIView):
                 recipient_id
             )
 
-            related_object = recipient_details["object"]
-            recipient_email = recipient_details["email"]
+            related_object = recipient_details[
+                "object"
+            ]
+
+            recipient_email = recipient_details[
+                "email"
+            ]
 
         except Lead.DoesNotExist:
 
@@ -2080,17 +2258,23 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        except ValueError as e:
+        except Exception as e:
+
+            print("RECIPIENT LOOKUP ERROR")
+            print("ERROR TYPE:", type(e).__name__)
+            print("ERROR:", str(e))
+            traceback.print_exc()
 
             return Response(
                 {
-                    "error": str(e)
+                    "error": "Could not load recipient email.",
+                    "details": str(e),
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
         # ====================================================
-        # VALIDATE RECIPIENT EMAIL
+        # VALIDATE EMAIL
         # ====================================================
 
         if not recipient_email:
@@ -2116,7 +2300,7 @@ class EmailListCreateView(APIView):
             )
 
         # ====================================================
-        # VALIDATE CC / BCC
+        # CC / BCC
         # ====================================================
 
         if cc_emails is None:
@@ -2125,7 +2309,10 @@ class EmailListCreateView(APIView):
         if bcc_emails is None:
             bcc_emails = []
 
-        if not isinstance(cc_emails, list):
+        if not isinstance(
+            cc_emails,
+            list
+        ):
 
             return Response(
                 {
@@ -2134,7 +2321,10 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not isinstance(bcc_emails, list):
+        if not isinstance(
+            bcc_emails,
+            list
+        ):
 
             return Response(
                 {
@@ -2143,7 +2333,6 @@ class EmailListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Remove empty values
         cc_emails = [
             str(email).strip()
             for email in cc_emails
@@ -2191,18 +2380,18 @@ class EmailListCreateView(APIView):
         )
 
         # ====================================================
-        # SMTP EMAIL
+        # SEND EMAIL USING SMTP
         # ====================================================
 
         try:
 
             print("")
             print("==========================================")
-            print("          SMTP EMAIL DEBUG")
+            print("SMTP EMAIL DEBUG")
             print("==========================================")
 
             print(
-                "EMAIL_BACKEND:",
+                "EMAIL BACKEND:",
                 getattr(
                     settings,
                     "EMAIL_BACKEND",
@@ -2211,7 +2400,7 @@ class EmailListCreateView(APIView):
             )
 
             print(
-                "EMAIL_HOST:",
+                "EMAIL HOST:",
                 getattr(
                     settings,
                     "EMAIL_HOST",
@@ -2220,7 +2409,7 @@ class EmailListCreateView(APIView):
             )
 
             print(
-                "EMAIL_PORT:",
+                "EMAIL PORT:",
                 getattr(
                     settings,
                     "EMAIL_PORT",
@@ -2229,7 +2418,7 @@ class EmailListCreateView(APIView):
             )
 
             print(
-                "EMAIL_USE_TLS:",
+                "EMAIL USE TLS:",
                 getattr(
                     settings,
                     "EMAIL_USE_TLS",
@@ -2238,16 +2427,7 @@ class EmailListCreateView(APIView):
             )
 
             print(
-                "EMAIL_USE_SSL:",
-                getattr(
-                    settings,
-                    "EMAIL_USE_SSL",
-                    None
-                )
-            )
-
-            print(
-                "EMAIL_HOST_USER:",
+                "EMAIL HOST USER:",
                 getattr(
                     settings,
                     "EMAIL_HOST_USER",
@@ -2256,7 +2436,7 @@ class EmailListCreateView(APIView):
             )
 
             print(
-                "EMAIL_PASSWORD_CONFIGURED:",
+                "EMAIL PASSWORD CONFIGURED:",
                 bool(
                     getattr(
                         settings,
@@ -2267,7 +2447,7 @@ class EmailListCreateView(APIView):
             )
 
             print(
-                "DEFAULT_FROM_EMAIL:",
+                "DEFAULT FROM EMAIL:",
                 getattr(
                     settings,
                     "DEFAULT_FROM_EMAIL",
@@ -2293,20 +2473,22 @@ class EmailListCreateView(APIView):
             print("==========================================")
 
             # ------------------------------------------------
-            # CREATE DJANGO EMAIL
+            # CREATE EMAIL MESSAGE
             # ------------------------------------------------
 
             email_message = EmailMessage(
                 subject=subject,
                 body=body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email],
+                to=[
+                    recipient_email
+                ],
                 cc=cc_emails,
                 bcc=bcc_emails,
             )
 
             # ------------------------------------------------
-            # SEND EMAIL
+            # SEND
             # ------------------------------------------------
 
             result = email_message.send(
@@ -2323,7 +2505,7 @@ class EmailListCreateView(APIView):
             )
 
             # ------------------------------------------------
-            # UPDATE EMAIL STATUS
+            # UPDATE STATUS
             # ------------------------------------------------
 
             email_obj.status = "sent"
@@ -2339,7 +2521,7 @@ class EmailListCreateView(APIView):
             )
 
             # ------------------------------------------------
-            # SUCCESS RESPONSE
+            # RETURN SUCCESS
             # ------------------------------------------------
 
             serializer = EmailSerializer(
@@ -2359,7 +2541,7 @@ class EmailListCreateView(APIView):
 
             print("")
             print("==========================================")
-            print("          SMTP EMAIL ERROR")
+            print("SMTP EMAIL ERROR")
             print("==========================================")
 
             print(
@@ -2380,7 +2562,7 @@ class EmailListCreateView(APIView):
             print("")
 
             # ------------------------------------------------
-            # SAVE FAILED STATUS
+            # SAVE FAILED EMAIL
             # ------------------------------------------------
 
             email_obj.status = "failed"
@@ -2394,7 +2576,7 @@ class EmailListCreateView(APIView):
             )
 
             # ------------------------------------------------
-            # CREATE NOTIFICATION
+            # NOTIFICATION
             # ------------------------------------------------
 
             try:
@@ -2418,7 +2600,7 @@ class EmailListCreateView(APIView):
                 )
 
             # ------------------------------------------------
-            # ERROR RESPONSE
+            # RETURN ERROR
             # ------------------------------------------------
 
             return Response(
@@ -2439,11 +2621,15 @@ class EmailDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # --------------------------------------------------------
+    # ========================================================
     # GET
-    # --------------------------------------------------------
+    # ========================================================
 
-    def get(self, request, pk):
+    def get(
+        self,
+        request,
+        pk
+    ):
 
         try:
 
@@ -2465,14 +2651,19 @@ class EmailDetailView(APIView):
         )
 
         return Response(
-            serializer.data
+            serializer.data,
+            status=status.HTTP_200_OK
         )
 
-    # --------------------------------------------------------
+    # ========================================================
     # PUT
-    # --------------------------------------------------------
+    # ========================================================
 
-    def put(self, request, pk):
+    def put(
+        self,
+        request,
+        pk
+    ):
 
         try:
 
@@ -2500,7 +2691,8 @@ class EmailDetailView(APIView):
             serializer.save()
 
             return Response(
-                serializer.data
+                serializer.data,
+                status=status.HTTP_200_OK
             )
 
         return Response(
@@ -2508,11 +2700,15 @@ class EmailDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # --------------------------------------------------------
+    # ========================================================
     # DELETE
-    # --------------------------------------------------------
+    # ========================================================
 
-    def delete(self, request, pk):
+    def delete(
+        self,
+        request,
+        pk
+    ):
 
         try:
 
@@ -2547,7 +2743,10 @@ class EmailRecipientView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(
+        self,
+        request
+    ):
 
         module = request.query_params.get(
             "module"
@@ -2557,9 +2756,16 @@ class EmailRecipientView(APIView):
             "objectId"
         )
 
-        # ----------------------------------------------------
-        # VALIDATE PARAMETERS
-        # ----------------------------------------------------
+        print("")
+        print("==========================================")
+        print("RECIPIENT API")
+        print("MODULE:", module)
+        print("OBJECT ID:", object_id)
+        print("==========================================")
+
+        # ====================================================
+        # VALIDATE MODULE
+        # ====================================================
 
         if not module:
 
@@ -2570,6 +2776,10 @@ class EmailRecipientView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # ====================================================
+        # VALIDATE OBJECT ID
+        # ====================================================
+
         if not object_id:
 
             return Response(
@@ -2578,6 +2788,10 @@ class EmailRecipientView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        module = str(
+            module
+        ).strip().lower()
 
         valid_modules = [
             "lead",
@@ -2595,9 +2809,9 @@ class EmailRecipientView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # GET RECIPIENT
-        # ----------------------------------------------------
+        # ====================================================
 
         try:
 
@@ -2605,6 +2819,73 @@ class EmailRecipientView(APIView):
                 module,
                 object_id
             )
+
+            name = recipient_details.get(
+                "name",
+                ""
+            )
+
+            email = recipient_details.get(
+                "email"
+            )
+
+            print(
+                "RECIPIENT NAME:",
+                name
+            )
+
+            print(
+                "RECIPIENT EMAIL:",
+                email
+            )
+
+            print("==========================================")
+
+            # =================================================
+            # NO EMAIL
+            # =================================================
+
+            if not email:
+
+                return Response(
+                    {
+                        "error": "Recipient email address is not available.",
+                        "name": name,
+                        "email": None,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            email = str(
+                email
+            ).strip()
+
+            if not email:
+
+                return Response(
+                    {
+                        "error": "Recipient email address is empty.",
+                        "name": name,
+                        "email": None,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # =================================================
+            # SUCCESS
+            # =================================================
+
+            return Response(
+                {
+                    "name": name,
+                    "email": email,
+                },
+                status=status.HTTP_200_OK
+            )
+
+        # ====================================================
+        # OBJECT NOT FOUND
+        # ====================================================
 
         except Lead.DoesNotExist:
 
@@ -2642,43 +2923,37 @@ class EmailRecipientView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        except ValueError as e:
+        # ====================================================
+        # OTHER ERROR
+        # ====================================================
+
+        except Exception as e:
+
+            print("")
+            print("==========================================")
+            print("RECIPIENT LOOKUP ERROR")
+            print("==========================================")
+
+            print(
+                "ERROR TYPE:",
+                type(e).__name__
+            )
+
+            print(
+                "ERROR:",
+                str(e)
+            )
+
+            traceback.print_exc()
+
+            print("==========================================")
+            print("")
 
             return Response(
                 {
-                    "error": str(e)
+                    "error": "Could not load recipient email.",
+                    "details": str(e),
+                    "error_type": type(e).__name__,
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        # ----------------------------------------------------
-        # CHECK EMAIL
-        # ----------------------------------------------------
-
-        recipient_email = recipient_details.get(
-            "email"
-        )
-
-        if not recipient_email:
-
-            return Response(
-                {
-                    "error": "Recipient email address is not available."
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # ----------------------------------------------------
-        # RESPONSE
-        # ----------------------------------------------------
-
-        return Response(
-            {
-                "name": recipient_details.get(
-                    "name",
-                    ""
-                ),
-                "email": recipient_email,
-            },
-            status=status.HTTP_200_OK
-        )

@@ -846,13 +846,902 @@
 #             )
 
 
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from rest_framework.permissions import IsAuthenticated
+
+# from django.contrib.contenttypes.models import ContentType
+# from django.core.mail import EmailMessage
+# from django.conf import settings
+# from django.utils import timezone
+# from django.contrib.auth import get_user_model
+
+# from .models import Email
+# from .serializers import EmailSerializer
+
+# from apps.activities.activity.models import Activity
+# from apps.leads.models import Lead
+# from apps.deals.models import Deal
+# from apps.companies.models import Company
+# from apps.tickets.models import Ticket
+
+# from apps.notifications.models import Notification
+
+
+# User = get_user_model()
+
+
+# # =====================================================
+# # GET RECIPIENT DETAILS
+# # =====================================================
+
+# def get_recipient_details(module, object_id):
+
+#     module = module.lower().strip()
+
+#     # =================================================
+#     # LEAD
+#     # =================================================
+
+#     if module == "lead":
+
+#         lead = Lead.objects.get(pk=object_id)
+
+#         return {
+#             "id": lead.id,
+#             "name": (
+#                 f"{lead.first_name} {lead.last_name}"
+#             ).strip(),
+#             "email": lead.email,
+#         }
+
+#     # =================================================
+#     # COMPANY
+#     # =================================================
+
+#     elif module == "company":
+
+#         company = Company.objects.get(pk=object_id)
+
+#         return {
+#             "id": company.id,
+#             "name": getattr(
+#                 company,
+#                 "company_name",
+#                 None
+#             ),
+#             "email": getattr(
+#                 company,
+#                 "email",
+#                 None
+#             ),
+#         }
+
+#     # =================================================
+#     # DEAL
+#     # =================================================
+
+#     elif module == "deal":
+
+#         deal = Deal.objects.select_related(
+#             "associated_lead"
+#         ).get(pk=object_id)
+
+#         lead = deal.associated_lead
+
+#         if not lead:
+#             return {
+#                 "id": deal.id,
+#                 "name": None,
+#                 "email": None,
+#             }
+
+#         return {
+#             "id": deal.id,
+#             "name": (
+#                 f"{lead.first_name} {lead.last_name}"
+#             ).strip(),
+#             "email": lead.email,
+#         }
+
+#     # =================================================
+#     # TICKET
+#     # =================================================
+
+#     elif module == "ticket":
+
+#         ticket = Ticket.objects.select_related(
+#             "associated_deal__associated_lead"
+#         ).get(pk=object_id)
+
+#         deal = ticket.associated_deal
+
+#         if not deal:
+#             return {
+#                 "id": ticket.id,
+#                 "name": None,
+#                 "email": None,
+#             }
+
+#         lead = deal.associated_lead
+
+#         if not lead:
+#             return {
+#                 "id": ticket.id,
+#                 "name": None,
+#                 "email": None,
+#             }
+
+#         return {
+#             "id": ticket.id,
+#             "name": (
+#                 f"{lead.first_name} {lead.last_name}"
+#             ).strip(),
+#             "email": lead.email,
+#         }
+
+#     raise ValueError("Invalid module")
+
+
+# # =====================================================
+# # EMAIL LIST + CREATE
+# # =====================================================
+
+# class EmailListCreateView(APIView):
+
+#     permission_classes = [IsAuthenticated]
+
+#     # =================================================
+#     # GET
+#     # =================================================
+
+#     def get(self, request):
+
+#         emails = Email.objects.select_related(
+#             "activity",
+#             "activity__created_by"
+#         ).order_by(
+#             "-activity__created_at"
+#         )
+
+#         serializer = EmailSerializer(
+#             emails,
+#             many=True
+#         )
+
+#         return Response(
+#             serializer.data,
+#             status=status.HTTP_200_OK
+#         )
+
+#     # =================================================
+#     # POST
+#     # =================================================
+
+#     def post(self, request):
+
+#         # ---------------------------------------------
+#         # Get request data
+#         # ---------------------------------------------
+
+#         sender_id = request.data.get("sender_id")
+#         module = request.data.get("module")
+#         recipient_id = request.data.get("recipient_id")
+
+#         # ---------------------------------------------
+#         # Validate sender
+#         # ---------------------------------------------
+
+#         if not sender_id:
+
+#             return Response(
+#                 {
+#                     "error": "sender_id is required."
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         try:
+
+#             sender = User.objects.get(
+#                 pk=sender_id
+#             )
+
+#         except User.DoesNotExist:
+
+#             return Response(
+#                 {
+#                     "error": (
+#                         f"User with id "
+#                         f"{sender_id} not found."
+#                     )
+#                 },
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         # ---------------------------------------------
+#         # Validate module
+#         # ---------------------------------------------
+
+#         if not module:
+
+#             return Response(
+#                 {
+#                     "error": "module is required."
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         module = module.lower().strip()
+
+#         allowed_modules = [
+#             "lead",
+#             "deal",
+#             "company",
+#             "ticket",
+#         ]
+
+#         if module not in allowed_modules:
+
+#             return Response(
+#                 {
+#                     "error": (
+#                         "module must be 'lead', 'deal', "
+#                         "'company', or 'ticket'."
+#                     )
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # ---------------------------------------------
+#         # Validate recipient ID
+#         # ---------------------------------------------
+
+#         if not recipient_id:
+
+#             return Response(
+#                 {
+#                     "error": "recipient_id is required."
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # ---------------------------------------------
+#         # Select CRM model
+#         # ---------------------------------------------
+
+#         if module == "lead":
+
+#             model = Lead
+
+#         elif module == "deal":
+
+#             model = Deal
+
+#         elif module == "company":
+
+#             model = Company
+
+#         elif module == "ticket":
+
+#             model = Ticket
+
+#         # ---------------------------------------------
+#         # Get related CRM object
+#         # ---------------------------------------------
+
+#         try:
+
+#             related_object = model.objects.get(
+#                 pk=recipient_id
+#             )
+
+#         except model.DoesNotExist:
+
+#             return Response(
+#                 {
+#                     "error": (
+#                         f"{module} with id "
+#                         f"{recipient_id} not found."
+#                     )
+#                 },
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         # ---------------------------------------------
+#         # Get recipient name + email
+#         # ---------------------------------------------
+
+#         recipient_name = None
+#         recipient_email = None
+
+#         # =================================================
+#         # LEAD
+#         # =================================================
+
+#         if module == "lead":
+
+#             recipient_name = (
+#                 f"{related_object.first_name} "
+#                 f"{related_object.last_name}"
+#             ).strip()
+
+#             recipient_email = related_object.email
+
+#         # =================================================
+#         # DEAL
+#         # =================================================
+
+#         elif module == "deal":
+
+#             lead = related_object.associated_lead
+
+#             if lead:
+
+#                 recipient_name = (
+#                     f"{lead.first_name} "
+#                     f"{lead.last_name}"
+#                 ).strip()
+
+#                 recipient_email = lead.email
+
+#         # =================================================
+#         # COMPANY
+#         # =================================================
+
+#         elif module == "company":
+
+#             recipient_name = getattr(
+#                 related_object,
+#                 "company_name",
+#                 None
+#             )
+
+#             recipient_email = getattr(
+#                 related_object,
+#                 "email",
+#                 None
+#             )
+
+#         # =================================================
+#         # TICKET
+#         # =================================================
+#         #
+#         # Ticket
+#         #   -> associated_deal
+#         #       -> associated_lead
+#         #           -> email
+#         #
+#         # Do NOT use ticket_owner here.
+#         # =================================================
+
+#         elif module == "ticket":
+
+#             deal = related_object.associated_deal
+
+#             if deal:
+
+#                 lead = deal.associated_lead
+
+#                 if lead:
+
+#                     recipient_name = (
+#                         f"{lead.first_name} "
+#                         f"{lead.last_name}"
+#                     ).strip()
+
+#                     recipient_email = lead.email
+
+#         # ---------------------------------------------
+#         # Validate recipient email
+#         # ---------------------------------------------
+
+#         if not recipient_email:
+
+#             return Response(
+#                 {
+#                     "error": (
+#                         f"{module} with id "
+#                         f"{recipient_id} does not have "
+#                         f"a recipient email."
+#                     )
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # ---------------------------------------------
+#         # Email fields
+#         # ---------------------------------------------
+
+#         subject = request.data.get(
+#             "subject",
+#             ""
+#         )
+
+#         body = request.data.get(
+#             "body",
+#             ""
+#         )
+
+#         cc = request.data.get(
+#             "cc",
+#             []
+#         )
+
+#         bcc = request.data.get(
+#             "bcc",
+#             []
+#         )
+
+#         # ---------------------------------------------
+#         # Validate CC
+#         # ---------------------------------------------
+
+#         if not isinstance(cc, list):
+
+#             return Response(
+#                 {
+#                     "error": "cc must be a list."
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # ---------------------------------------------
+#         # Validate BCC
+#         # ---------------------------------------------
+
+#         if not isinstance(bcc, list):
+
+#             return Response(
+#                 {
+#                     "error": "bcc must be a list."
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # ---------------------------------------------
+#         # ContentType
+#         # ---------------------------------------------
+
+#         content_type = ContentType.objects.get_for_model(
+#             model
+#         )
+
+#         # ---------------------------------------------
+#         # Create Activity
+#         # ---------------------------------------------
+
+#         activity = Activity.objects.create(
+#             activity_type="email",
+#             created_by=sender,
+#             content_type=content_type,
+#             object_id=related_object.pk
+#         )
+
+#         # ---------------------------------------------
+#         # Recipient JSON
+#         # ---------------------------------------------
+
+#         to_recipients = [
+#             {
+#                 "id": related_object.pk,
+#                 "name": recipient_name,
+#                 "email": recipient_email,
+#             }
+#         ]
+
+#         # ---------------------------------------------
+#         # Convert CC
+#         # ---------------------------------------------
+
+#         cc_emails = []
+
+#         for recipient in cc:
+
+#             if isinstance(recipient, dict):
+
+#                 email_address = recipient.get(
+#                     "email"
+#                 )
+
+#                 if email_address:
+
+#                     cc_emails.append(
+#                         email_address
+#                     )
+
+#             elif isinstance(recipient, str):
+
+#                 if recipient.strip():
+
+#                     cc_emails.append(
+#                         recipient.strip()
+#                     )
+
+#         # ---------------------------------------------
+#         # Convert BCC
+#         # ---------------------------------------------
+
+#         bcc_emails = []
+
+#         for recipient in bcc:
+
+#             if isinstance(recipient, dict):
+
+#                 email_address = recipient.get(
+#                     "email"
+#                 )
+
+#                 if email_address:
+
+#                     bcc_emails.append(
+#                         email_address
+#                     )
+
+#             elif isinstance(recipient, str):
+
+#                 if recipient.strip():
+
+#                     bcc_emails.append(
+#                         recipient.strip()
+#                     )
+
+#         # ---------------------------------------------
+#         # Create Email
+#         # ---------------------------------------------
+
+#         email = Email.objects.create(
+#             activity=activity,
+#             to_recipients=to_recipients,
+#             cc=cc,
+#             bcc=bcc,
+#             subject=subject,
+#             body=body,
+#             status="draft"
+#         )
+
+#         # ---------------------------------------------
+#         # Send Email
+#         # ---------------------------------------------
+
+#         try:
+
+#             email_message = EmailMessage(
+#                 subject=subject,
+#                 body=body,
+#                 from_email=settings.DEFAULT_FROM_EMAIL,
+#                 to=[recipient_email],
+#                 cc=cc_emails,
+#                 bcc=bcc_emails
+#             )
+
+#             # -----------------------------------------
+#             # Send as HTML
+#             # -----------------------------------------
+
+#             email_message.content_subtype = "html"
+
+#             # -----------------------------------------
+#             # Send
+#             # -----------------------------------------
+
+#             email_message.send(
+#                 fail_silently=False
+#             )
+
+#             # -----------------------------------------
+#             # Success
+#             # -----------------------------------------
+
+#             email.status = "sent"
+
+#             email.sent_at = timezone.now()
+
+#             email.error_message = None
+
+#             email.save(
+#                 update_fields=[
+#                     "status",
+#                     "sent_at",
+#                     "error_message"
+#                 ]
+#             )
+
+#             Notification.objects.create(
+#                 user=request.user,
+#                 title="Email Sent",
+#                 message=(
+#                     f"Email '{email.subject}' "
+#                     f"has been sent successfully."
+#                 ),
+#             )
+
+#         # ---------------------------------------------
+#         # Email sending failed
+#         # ---------------------------------------------
+
+#         except Exception as e:
+
+#             email.status = "failed"
+
+#             email.error_message = str(e)
+
+#             email.sent_at = None
+
+#             email.save(
+#                 update_fields=[
+#                     "status",
+#                     "error_message",
+#                     "sent_at"
+#                 ]
+#             )
+
+#             Notification.objects.create(
+#                 user=request.user,
+#                 title="Email Failed",
+#                 message=(
+#                     f"Email '{email.subject}' "
+#                     f"failed to send."
+#                 ),
+#             )
+
+#             # -----------------------------------------
+#             # Return actual SMTP error
+#             # -----------------------------------------
+
+#             return Response(
+#                 {
+#                     "error": "Email failed to send.",
+#                     "details": str(e),
+#                     "email": EmailSerializer(
+#                         email
+#                     ).data,
+#                 },
+#                 status=status.HTTP_502_BAD_GATEWAY
+#             )
+
+#         # ---------------------------------------------
+#         # Success Response
+#         # ---------------------------------------------
+
+#         response_serializer = EmailSerializer(
+#             email
+#         )
+
+#         return Response(
+#             response_serializer.data,
+#             status=status.HTTP_201_CREATED
+#         )
+
+
+# # =====================================================
+# # EMAIL DETAIL
+# # =====================================================
+
+# class EmailDetailView(APIView):
+
+#     permission_classes = [IsAuthenticated]
+
+#     # =================================================
+#     # GET OBJECT
+#     # =================================================
+
+#     def get_object(self, pk):
+
+#         try:
+
+#             return Email.objects.select_related(
+#                 "activity",
+#                 "activity__created_by"
+#             ).get(
+#                 pk=pk
+#             )
+
+#         except Email.DoesNotExist:
+
+#             return None
+
+#     # =================================================
+#     # GET
+#     # =================================================
+
+#     def get(self, request, pk):
+
+#         email = self.get_object(pk)
+
+#         if email is None:
+
+#             return Response(
+#                 {
+#                     "detail": "Email not found."
+#                 },
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         serializer = EmailSerializer(
+#             email
+#         )
+
+#         return Response(
+#             serializer.data,
+#             status=status.HTTP_200_OK
+#         )
+
+#     # =================================================
+#     # PUT
+#     # =================================================
+
+#     def put(self, request, pk):
+
+#         email = self.get_object(pk)
+
+#         if email is None:
+
+#             return Response(
+#                 {
+#                     "detail": "Email not found."
+#                 },
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         serializer = EmailSerializer(
+#             email,
+#             data=request.data,
+#             partial=True
+#         )
+
+#         if serializer.is_valid():
+
+#             serializer.save()
+
+#             Notification.objects.create(
+#                 user=request.user,
+#                 title="Email Updated",
+#                 message=(
+#                     f"Email '{email.subject}' "
+#                     f"has been updated."
+#                 ),
+#             )
+
+#             return Response(
+#                 EmailSerializer(email).data,
+#                 status=status.HTTP_200_OK
+#             )
+
+#         return Response(
+#             serializer.errors,
+#             status=status.HTTP_400_BAD_REQUEST
+#         )
+
+#     # =================================================
+#     # DELETE
+#     # =================================================
+
+#     def delete(self, request, pk):
+
+#         email = self.get_object(pk)
+
+#         if email is None:
+
+#             return Response(
+#                 {
+#                     "detail": "Email not found."
+#                 },
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         email_subject = email.subject
+
+#         email.delete()
+
+#         Notification.objects.create(
+#             user=request.user,
+#             title="Email Deleted",
+#             message=(
+#                 f"Email '{email_subject}' "
+#                 f"has been deleted."
+#             ),
+#         )
+
+#         return Response(
+#             {
+#                 "message": "Email deleted successfully."
+#             },
+#             status=status.HTTP_204_NO_CONTENT
+#         )
+
+
+# # =====================================================
+# # EMAIL RECIPIENT
+# # =====================================================
+
+# class EmailRecipientView(APIView):
+
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, module, object_id):
+
+#         module = module.lower().strip()
+
+#         allowed_modules = [
+#             "lead",
+#             "deal",
+#             "company",
+#             "ticket",
+#         ]
+
+#         if module not in allowed_modules:
+
+#             return Response(
+#                 {
+#                     "error": "Invalid module."
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         try:
+
+#             recipient = get_recipient_details(
+#                 module,
+#                 object_id
+#             )
+
+#             if not recipient.get("email"):
+
+#                 return Response(
+#                     {
+#                         "error": (
+#                             f"{module} with id "
+#                             f"{object_id} does not have "
+#                             f"a recipient email."
+#                         )
+#                     },
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+
+#             return Response(
+#                 recipient,
+#                 status=status.HTTP_200_OK
+#             )
+
+#         except (
+#             Lead.DoesNotExist,
+#             Company.DoesNotExist,
+#             Deal.DoesNotExist,
+#             Ticket.DoesNotExist,
+#         ):
+
+#             return Response(
+#                 {
+#                     "error": (
+#                         f"{module} with id "
+#                         f"{object_id} not found."
+#                     )
+#                 },
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         except ValueError as error:
+
+#             return Response(
+#                 {
+#                     "error": str(error)
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+
+
+
+import requests
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from django.contrib.contenttypes.models import ContentType
-from django.core.mail import EmailMessage
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -873,6 +1762,143 @@ User = get_user_model()
 
 
 # =====================================================
+# RESEND EMAIL HELPER
+# =====================================================
+
+def send_email_with_resend(
+    subject,
+    body,
+    recipient_email,
+    cc_emails=None,
+    bcc_emails=None,
+):
+    """
+    Send email using Resend HTTP API.
+
+    This replaces Gmail SMTP and avoids the Render
+    smtp.gmail.com:587 connection timeout.
+    """
+
+    # ---------------------------------------------
+    # Validate API key
+    # ---------------------------------------------
+
+    if not settings.RESEND_API_KEY:
+
+        raise Exception(
+            "RESEND_API_KEY is not configured."
+        )
+
+    # ---------------------------------------------
+    # Validate sender
+    # ---------------------------------------------
+
+    if not settings.RESEND_FROM_EMAIL:
+
+        raise Exception(
+            "RESEND_FROM_EMAIL is not configured."
+        )
+
+    # ---------------------------------------------
+    # Validate recipient
+    # ---------------------------------------------
+
+    if not recipient_email:
+
+        raise Exception(
+            "Recipient email address is empty."
+        )
+
+    # ---------------------------------------------
+    # Default CC / BCC
+    # ---------------------------------------------
+
+    cc_emails = cc_emails or []
+    bcc_emails = bcc_emails or []
+
+    # ---------------------------------------------
+    # Resend API payload
+    # ---------------------------------------------
+
+    payload = {
+        "from": settings.RESEND_FROM_EMAIL,
+        "to": [recipient_email],
+        "subject": subject,
+        "html": body,
+    }
+
+    # ---------------------------------------------
+    # Add CC
+    # ---------------------------------------------
+
+    if cc_emails:
+
+        payload["cc"] = cc_emails
+
+    # ---------------------------------------------
+    # Add BCC
+    # ---------------------------------------------
+
+    if bcc_emails:
+
+        payload["bcc"] = bcc_emails
+
+    # ---------------------------------------------
+    # Send request to Resend
+    # ---------------------------------------------
+
+    response = requests.post(
+        "https://api.resend.com/emails",
+
+        headers={
+            "Authorization": (
+                f"Bearer {settings.RESEND_API_KEY}"
+            ),
+            "Content-Type": "application/json",
+        },
+
+        json=payload,
+
+        timeout=15,
+    )
+
+    # ---------------------------------------------
+    # Handle Resend error
+    # ---------------------------------------------
+
+    if not response.ok:
+
+        try:
+
+            error_data = response.json()
+
+        except Exception:
+
+            error_data = response.text
+
+        raise Exception(
+            f"Resend API error "
+            f"({response.status_code}): "
+            f"{error_data}"
+        )
+
+    # ---------------------------------------------
+    # Return Resend response
+    # ---------------------------------------------
+
+    try:
+
+        return response.json()
+
+    except Exception:
+
+        return {
+            "status": "sent",
+            "response": response.text,
+        }
+
+
+# =====================================================
 # GET RECIPIENT DETAILS
 # =====================================================
 
@@ -886,12 +1912,15 @@ def get_recipient_details(module, object_id):
 
     if module == "lead":
 
-        lead = Lead.objects.get(pk=object_id)
+        lead = Lead.objects.get(
+            pk=object_id
+        )
 
         return {
             "id": lead.id,
             "name": (
-                f"{lead.first_name} {lead.last_name}"
+                f"{lead.first_name} "
+                f"{lead.last_name}"
             ).strip(),
             "email": lead.email,
         }
@@ -902,7 +1931,9 @@ def get_recipient_details(module, object_id):
 
     elif module == "company":
 
-        company = Company.objects.get(pk=object_id)
+        company = Company.objects.get(
+            pk=object_id
+        )
 
         return {
             "id": company.id,
@@ -926,11 +1957,14 @@ def get_recipient_details(module, object_id):
 
         deal = Deal.objects.select_related(
             "associated_lead"
-        ).get(pk=object_id)
+        ).get(
+            pk=object_id
+        )
 
         lead = deal.associated_lead
 
         if not lead:
+
             return {
                 "id": deal.id,
                 "name": None,
@@ -940,7 +1974,8 @@ def get_recipient_details(module, object_id):
         return {
             "id": deal.id,
             "name": (
-                f"{lead.first_name} {lead.last_name}"
+                f"{lead.first_name} "
+                f"{lead.last_name}"
             ).strip(),
             "email": lead.email,
         }
@@ -953,11 +1988,14 @@ def get_recipient_details(module, object_id):
 
         ticket = Ticket.objects.select_related(
             "associated_deal__associated_lead"
-        ).get(pk=object_id)
+        ).get(
+            pk=object_id
+        )
 
         deal = ticket.associated_deal
 
         if not deal:
+
             return {
                 "id": ticket.id,
                 "name": None,
@@ -967,6 +2005,7 @@ def get_recipient_details(module, object_id):
         lead = deal.associated_lead
 
         if not lead:
+
             return {
                 "id": ticket.id,
                 "name": None,
@@ -976,12 +2015,19 @@ def get_recipient_details(module, object_id):
         return {
             "id": ticket.id,
             "name": (
-                f"{lead.first_name} {lead.last_name}"
+                f"{lead.first_name} "
+                f"{lead.last_name}"
             ).strip(),
             "email": lead.email,
         }
 
-    raise ValueError("Invalid module")
+    # =================================================
+    # INVALID MODULE
+    # =================================================
+
+    raise ValueError(
+        "Invalid module"
+    )
 
 
 # =====================================================
@@ -990,7 +2036,9 @@ def get_recipient_details(module, object_id):
 
 class EmailListCreateView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated
+    ]
 
     # =================================================
     # GET
@@ -1025,9 +2073,17 @@ class EmailListCreateView(APIView):
         # Get request data
         # ---------------------------------------------
 
-        sender_id = request.data.get("sender_id")
-        module = request.data.get("module")
-        recipient_id = request.data.get("recipient_id")
+        sender_id = request.data.get(
+            "sender_id"
+        )
+
+        module = request.data.get(
+            "module"
+        )
+
+        recipient_id = request.data.get(
+            "recipient_id"
+        )
 
         # ---------------------------------------------
         # Validate sender
@@ -1037,7 +2093,9 @@ class EmailListCreateView(APIView):
 
             return Response(
                 {
-                    "error": "sender_id is required."
+                    "error": (
+                        "sender_id is required."
+                    )
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -1068,7 +2126,9 @@ class EmailListCreateView(APIView):
 
             return Response(
                 {
-                    "error": "module is required."
+                    "error": (
+                        "module is required."
+                    )
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -1087,8 +2147,9 @@ class EmailListCreateView(APIView):
             return Response(
                 {
                     "error": (
-                        "module must be 'lead', 'deal', "
-                        "'company', or 'ticket'."
+                        "module must be 'lead', "
+                        "'deal', 'company', "
+                        "or 'ticket'."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST
@@ -1102,7 +2163,9 @@ class EmailListCreateView(APIView):
 
             return Response(
                 {
-                    "error": "recipient_id is required."
+                    "error": (
+                        "recipient_id is required."
+                    )
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -1123,7 +2186,7 @@ class EmailListCreateView(APIView):
 
             model = Company
 
-        elif module == "ticket":
+        else:
 
             model = Ticket
 
@@ -1167,7 +2230,9 @@ class EmailListCreateView(APIView):
                 f"{related_object.last_name}"
             ).strip()
 
-            recipient_email = related_object.email
+            recipient_email = (
+                related_object.email
+            )
 
         # =================================================
         # DEAL
@@ -1184,7 +2249,9 @@ class EmailListCreateView(APIView):
                     f"{lead.last_name}"
                 ).strip()
 
-                recipient_email = lead.email
+                recipient_email = (
+                    lead.email
+                )
 
         # =================================================
         # COMPANY
@@ -1218,7 +2285,9 @@ class EmailListCreateView(APIView):
 
         elif module == "ticket":
 
-            deal = related_object.associated_deal
+            deal = (
+                related_object.associated_deal
+            )
 
             if deal:
 
@@ -1231,7 +2300,9 @@ class EmailListCreateView(APIView):
                         f"{lead.last_name}"
                     ).strip()
 
-                    recipient_email = lead.email
+                    recipient_email = (
+                        lead.email
+                    )
 
         # ---------------------------------------------
         # Validate recipient email
@@ -1243,8 +2314,8 @@ class EmailListCreateView(APIView):
                 {
                     "error": (
                         f"{module} with id "
-                        f"{recipient_id} does not have "
-                        f"a recipient email."
+                        f"{recipient_id} does not "
+                        f"have a recipient email."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST
@@ -1282,7 +2353,9 @@ class EmailListCreateView(APIView):
 
             return Response(
                 {
-                    "error": "cc must be a list."
+                    "error": (
+                        "cc must be a list."
+                    )
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -1295,7 +2368,9 @@ class EmailListCreateView(APIView):
 
             return Response(
                 {
-                    "error": "bcc must be a list."
+                    "error": (
+                        "bcc must be a list."
+                    )
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -1304,8 +2379,10 @@ class EmailListCreateView(APIView):
         # ContentType
         # ---------------------------------------------
 
-        content_type = ContentType.objects.get_for_model(
-            model
+        content_type = (
+            ContentType.objects.get_for_model(
+                model
+            )
         )
 
         # ---------------------------------------------
@@ -1339,10 +2416,13 @@ class EmailListCreateView(APIView):
 
         for recipient in cc:
 
-            if isinstance(recipient, dict):
+            if isinstance(
+                recipient,
+                dict
+            ):
 
-                email_address = recipient.get(
-                    "email"
+                email_address = (
+                    recipient.get("email")
                 )
 
                 if email_address:
@@ -1351,7 +2431,10 @@ class EmailListCreateView(APIView):
                         email_address
                     )
 
-            elif isinstance(recipient, str):
+            elif isinstance(
+                recipient,
+                str
+            ):
 
                 if recipient.strip():
 
@@ -1367,10 +2450,13 @@ class EmailListCreateView(APIView):
 
         for recipient in bcc:
 
-            if isinstance(recipient, dict):
+            if isinstance(
+                recipient,
+                dict
+            ):
 
-                email_address = recipient.get(
-                    "email"
+                email_address = (
+                    recipient.get("email")
                 )
 
                 if email_address:
@@ -1379,7 +2465,10 @@ class EmailListCreateView(APIView):
                         email_address
                     )
 
-            elif isinstance(recipient, str):
+            elif isinstance(
+                recipient,
+                str
+            ):
 
                 if recipient.strip():
 
@@ -1388,7 +2477,7 @@ class EmailListCreateView(APIView):
                     )
 
         # ---------------------------------------------
-        # Create Email
+        # Create Email database record
         # ---------------------------------------------
 
         email = Email.objects.create(
@@ -1402,32 +2491,19 @@ class EmailListCreateView(APIView):
         )
 
         # ---------------------------------------------
-        # Send Email
+        # Send Email using Resend
         # ---------------------------------------------
 
         try:
 
-            email_message = EmailMessage(
-                subject=subject,
-                body=body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email],
-                cc=cc_emails,
-                bcc=bcc_emails
-            )
-
-            # -----------------------------------------
-            # Send as HTML
-            # -----------------------------------------
-
-            email_message.content_subtype = "html"
-
-            # -----------------------------------------
-            # Send
-            # -----------------------------------------
-
-            email_message.send(
-                fail_silently=False
+            resend_response = (
+                send_email_with_resend(
+                    subject=subject,
+                    body=body,
+                    recipient_email=recipient_email,
+                    cc_emails=cc_emails,
+                    bcc_emails=bcc_emails,
+                )
             )
 
             # -----------------------------------------
@@ -1447,6 +2523,10 @@ class EmailListCreateView(APIView):
                     "error_message"
                 ]
             )
+
+            # -----------------------------------------
+            # Notification
+            # -----------------------------------------
 
             Notification.objects.create(
                 user=request.user,
@@ -1477,6 +2557,10 @@ class EmailListCreateView(APIView):
                 ]
             )
 
+            # -----------------------------------------
+            # Failed notification
+            # -----------------------------------------
+
             Notification.objects.create(
                 user=request.user,
                 title="Email Failed",
@@ -1487,12 +2571,14 @@ class EmailListCreateView(APIView):
             )
 
             # -----------------------------------------
-            # Return actual SMTP error
+            # Return Resend error
             # -----------------------------------------
 
             return Response(
                 {
-                    "error": "Email failed to send.",
+                    "error": (
+                        "Email failed to send."
+                    ),
                     "details": str(e),
                     "email": EmailSerializer(
                         email
@@ -1505,8 +2591,8 @@ class EmailListCreateView(APIView):
         # Success Response
         # ---------------------------------------------
 
-        response_serializer = EmailSerializer(
-            email
+        response_serializer = (
+            EmailSerializer(email)
         )
 
         return Response(
@@ -1521,7 +2607,9 @@ class EmailListCreateView(APIView):
 
 class EmailDetailView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated
+    ]
 
     # =================================================
     # GET OBJECT
@@ -1554,7 +2642,9 @@ class EmailDetailView(APIView):
 
             return Response(
                 {
-                    "detail": "Email not found."
+                    "detail": (
+                        "Email not found."
+                    )
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
@@ -1580,7 +2670,9 @@ class EmailDetailView(APIView):
 
             return Response(
                 {
-                    "detail": "Email not found."
+                    "detail": (
+                        "Email not found."
+                    )
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
@@ -1605,7 +2697,9 @@ class EmailDetailView(APIView):
             )
 
             return Response(
-                EmailSerializer(email).data,
+                EmailSerializer(
+                    email
+                ).data,
                 status=status.HTTP_200_OK
             )
 
@@ -1626,7 +2720,9 @@ class EmailDetailView(APIView):
 
             return Response(
                 {
-                    "detail": "Email not found."
+                    "detail": (
+                        "Email not found."
+                    )
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
@@ -1646,7 +2742,9 @@ class EmailDetailView(APIView):
 
         return Response(
             {
-                "message": "Email deleted successfully."
+                "message": (
+                    "Email deleted successfully."
+                )
             },
             status=status.HTTP_204_NO_CONTENT
         )
@@ -1658,9 +2756,16 @@ class EmailDetailView(APIView):
 
 class EmailRecipientView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated
+    ]
 
-    def get(self, request, module, object_id):
+    def get(
+        self,
+        request,
+        module,
+        object_id
+    ):
 
         module = module.lower().strip()
 
@@ -1675,7 +2780,9 @@ class EmailRecipientView(APIView):
 
             return Response(
                 {
-                    "error": "Invalid module."
+                    "error": (
+                        "Invalid module."
+                    )
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -1693,8 +2800,8 @@ class EmailRecipientView(APIView):
                     {
                         "error": (
                             f"{module} with id "
-                            f"{object_id} does not have "
-                            f"a recipient email."
+                            f"{object_id} does not "
+                            f"have a recipient email."
                         )
                     },
                     status=status.HTTP_400_BAD_REQUEST

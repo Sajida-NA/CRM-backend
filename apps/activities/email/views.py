@@ -846,7 +846,6 @@
 #             )
 
 
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -857,8 +856,6 @@ from django.core.mail import EmailMessage
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-
-import traceback
 
 from .models import Email
 from .serializers import EmailSerializer
@@ -1031,12 +1028,6 @@ class EmailListCreateView(APIView):
         sender_id = request.data.get("sender_id")
         module = request.data.get("module")
         recipient_id = request.data.get("recipient_id")
-
-        print("========== EMAIL REQUEST ==========")
-        print("Sender ID:", sender_id)
-        print("Module:", module)
-        print("Recipient ID:", recipient_id)
-        print("===================================")
 
         # ---------------------------------------------
         # Validate sender
@@ -1216,6 +1207,14 @@ class EmailListCreateView(APIView):
         # =================================================
         # TICKET
         # =================================================
+        #
+        # Ticket
+        #   -> associated_deal
+        #       -> associated_lead
+        #           -> email
+        #
+        # Do NOT use ticket_owner here.
+        # =================================================
 
         elif module == "ticket":
 
@@ -1237,9 +1236,6 @@ class EmailListCreateView(APIView):
         # ---------------------------------------------
         # Validate recipient email
         # ---------------------------------------------
-
-        print("Recipient Name:", recipient_name)
-        print("Recipient Email:", recipient_email)
 
         if not recipient_email:
 
@@ -1278,6 +1274,10 @@ class EmailListCreateView(APIView):
             []
         )
 
+        # ---------------------------------------------
+        # Validate CC
+        # ---------------------------------------------
+
         if not isinstance(cc, list):
 
             return Response(
@@ -1286,6 +1286,10 @@ class EmailListCreateView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # ---------------------------------------------
+        # Validate BCC
+        # ---------------------------------------------
 
         if not isinstance(bcc, list):
 
@@ -1403,53 +1407,6 @@ class EmailListCreateView(APIView):
 
         try:
 
-            print("========== SMTP DEBUG ==========")
-            print(
-                "EMAIL_HOST:",
-                getattr(
-                    settings,
-                    "EMAIL_HOST",
-                    None
-                )
-            )
-            print(
-                "EMAIL_PORT:",
-                getattr(
-                    settings,
-                    "EMAIL_PORT",
-                    None
-                )
-            )
-            print(
-                "EMAIL_USE_TLS:",
-                getattr(
-                    settings,
-                    "EMAIL_USE_TLS",
-                    None
-                )
-            )
-            print(
-                "EMAIL_HOST_USER:",
-                getattr(
-                    settings,
-                    "EMAIL_HOST_USER",
-                    None
-                )
-            )
-            print(
-                "DEFAULT_FROM_EMAIL:",
-                getattr(
-                    settings,
-                    "DEFAULT_FROM_EMAIL",
-                    None
-                )
-            )
-            print(
-                "TO:",
-                recipient_email
-            )
-            print("================================")
-
             email_message = EmailMessage(
                 subject=subject,
                 body=body,
@@ -1459,14 +1416,19 @@ class EmailListCreateView(APIView):
                 bcc=bcc_emails
             )
 
-            print("Creating EmailMessage: SUCCESS")
-            print("Trying to send email...")
+            # -----------------------------------------
+            # Send as HTML
+            # -----------------------------------------
+
+            email_message.content_subtype = "html"
+
+            # -----------------------------------------
+            # Send
+            # -----------------------------------------
 
             email_message.send(
                 fail_silently=False
             )
-
-            print("Email sent successfully.")
 
             # -----------------------------------------
             # Success
@@ -1495,85 +1457,52 @@ class EmailListCreateView(APIView):
                 ),
             )
 
+        # ---------------------------------------------
+        # Email sending failed
+        # ---------------------------------------------
+
         except Exception as e:
 
-            print("========================================")
-            print("          EMAIL SEND ERROR")
-            print("========================================")
-            print("ERROR TYPE:", type(e).__name__)
-            print("ERROR:", repr(e))
-            print("ERROR STRING:", str(e))
-            print("========================================")
+            email.status = "failed"
 
-            traceback.print_exc()
+            email.error_message = str(e)
 
-            print("========================================")
-            print("Saving email as FAILED...")
-            print("========================================")
+            email.sent_at = None
 
-            try:
+            email.save(
+                update_fields=[
+                    "status",
+                    "error_message",
+                    "sent_at"
+                ]
+            )
 
-                email.status = "failed"
-
-                email.error_message = str(e)
-
-                email.sent_at = None
-
-                email.save(
-                    update_fields=[
-                        "status",
-                        "error_message",
-                        "sent_at"
-                    ]
-                )
-
-                print(
-                    "Email status saved as FAILED."
-                )
-
-            except Exception as save_error:
-
-                print(
-                    "ERROR SAVING FAILED EMAIL:",
-                    repr(save_error)
-                )
-
-                traceback.print_exc()
+            Notification.objects.create(
+                user=request.user,
+                title="Email Failed",
+                message=(
+                    f"Email '{email.subject}' "
+                    f"failed to send."
+                ),
+            )
 
             # -----------------------------------------
-            # Notification
+            # Return actual SMTP error
             # -----------------------------------------
-
-            try:
-
-                Notification.objects.create(
-                    user=request.user,
-                    title="Email Failed",
-                    message=(
-                        f"Email '{email.subject}' "
-                        f"failed to send."
-                    ),
-                )
-
-            except Exception as notification_error:
-
-                print(
-                    "ERROR CREATING NOTIFICATION:",
-                    repr(notification_error)
-                )
-
-                traceback.print_exc()
 
             return Response(
                 {
-                    "error": "Failed to send email.",
+                    "error": "Email failed to send.",
                     "details": str(e),
+                    "email": EmailSerializer(
+                        email
+                    ).data,
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_502_BAD_GATEWAY
             )
 
         # ---------------------------------------------
-        # Response
+        # Success Response
         # ---------------------------------------------
 
         response_serializer = EmailSerializer(
@@ -1593,6 +1522,10 @@ class EmailListCreateView(APIView):
 class EmailDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
+
+    # =================================================
+    # GET OBJECT
+    # =================================================
 
     def get_object(self, pk):
 

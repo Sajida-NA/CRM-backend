@@ -660,6 +660,8 @@ INSTALLED_APPS = [
     "apps.activities.email",
     "apps.activities.meeting",
     "apps.activities.task",
+
+    "apps.ai",
 ]
 
 
@@ -875,3 +877,6 @@ TWILIO_WEBHOOK_BASE_URL = config(
     "TWILIO_WEBHOOK_BASE_URL",
     default=None,
 )
+
+
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="")

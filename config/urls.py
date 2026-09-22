@@ -66,4 +66,6 @@ urlpatterns = [
 
     # path("api/test/", TestView.as_view()),
 
+     path("api/ai/", include("apps.ai.urls")),
+
 ]

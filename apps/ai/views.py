@@ -126,6 +126,7 @@
 #                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
 #             )
 
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -137,7 +138,17 @@ class AISummaryView(APIView):
 
     def post(self, request):
 
+        print("========================================")
+        print("AI SUMMARY API CALLED")
+        print("REQUEST DATA:")
+        print(request.data)
+        print("========================================")
+
         try:
+            # =====================================================
+            # GET REQUEST DATA
+            # =====================================================
+
             data = request.data.get("data")
 
             if not data:
@@ -148,16 +159,89 @@ class AISummaryView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            summary = generate_ai_summary(data)
+            # =====================================================
+            # GET MODULE
+            # =====================================================
+
+            module = data.get("module")
+
+            if not module:
+                return Response(
+                    {
+                        "error": "CRM module is required."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # =====================================================
+            # GET OBJECT ID
+            # =====================================================
+
+            object_id = data.get("object_id")
+
+            if not object_id:
+                return Response(
+                    {
+                        "error": "CRM object ID is required."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # =====================================================
+            # GET CRM RECORD
+            # =====================================================
+
+            crm_data = data.get("crm_data")
+
+            if not crm_data:
+                return Response(
+                    {
+                        "error": "CRM record data is required."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # =====================================================
+            # PREPARE AI DATA
+            # =====================================================
+
+            ai_data = {
+                "module": module,
+                "object_id": object_id,
+                "crm_data": crm_data,
+            }
+
+            print("========================================")
+            print("MODULE:", module)
+            print("OBJECT ID:", object_id)
+            print("CRM DATA:", crm_data)
+            print("========================================")
+
+            # =====================================================
+            # GENERATE AI SUMMARY
+            # =====================================================
+
+            summary = generate_ai_summary(ai_data)
+
+            # =====================================================
+            # RESPONSE
+            # =====================================================
 
             return Response(
                 {
-                    "summary": summary
+                    "summary": summary,
+                    "module": module,
+                    "object_id": object_id,
                 },
                 status=status.HTTP_200_OK,
             )
 
         except Exception as e:
+
+            print("========================================")
+            print("AI SUMMARY ERROR:")
+            print(repr(e))
+            print("========================================")
 
             return Response(
                 {
@@ -166,3 +250,4 @@ class AISummaryView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+

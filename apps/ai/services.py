@@ -667,19 +667,25 @@
 
 #     return summary
 
+
+
+import time
+
 from google import genai
 from decouple import config
 
 
-# =====================================================
+# =========================================================
 # GEMINI CONFIGURATION
-# =====================================================
+# =========================================================
 
 GEMINI_API_KEY = config(
     "GEMINI_API_KEY",
-    default="",
+    default=""
 )
 
+PRIMARY_MODEL = "gemini-3.5-flash-lite"
+FALLBACK_MODEL = "gemini-3.5-flash"
 
 client = None
 
@@ -689,108 +695,201 @@ if GEMINI_API_KEY:
     )
 
 
-# =====================================================
-# GEMINI MODEL
-# =====================================================
-
-GEMINI_MODEL = "gemini-3.8-flash"
-
-
-# =====================================================
-# AI SUMMARY
-# =====================================================
+# =========================================================
+# GENERATE AI SUMMARY
+# =========================================================
 
 def generate_ai_summary(data):
 
-    # -------------------------------------------------
-    # Check Gemini configuration
-    # -------------------------------------------------
-
-    if client is None:
+    if not GEMINI_API_KEY:
         raise Exception(
             "GEMINI_API_KEY is not configured."
         )
 
-    # -------------------------------------------------
-    # Check CRM data
-    # -------------------------------------------------
+    if client is None:
+        raise Exception(
+            "Gemini client is not initialized."
+        )
 
     if not data:
         raise Exception(
-            "CRM data is required."
+            "CRM data is empty."
         )
 
-    # -------------------------------------------------
-    # AI Prompt
-    # -------------------------------------------------
+    module = data.get(
+        "module",
+        "CRM"
+    )
+
+    object_id = data.get(
+        "object_id"
+    )
+
+    crm_data = data.get(
+        "crm_data"
+    )
+
+    if not crm_data:
+        raise Exception(
+            "CRM record data is empty."
+        )
+
+    # =====================================================
+    # MODULE NAME
+    # =====================================================
+
+    module_names = {
+        "lead": "Lead",
+        "company": "Company",
+        "deal": "Deal",
+        "ticket": "Ticket",
+    }
+
+    module_name = module_names.get(
+        module,
+        str(module).title()
+    )
+
+    # =====================================================
+    # PROMPT
+    # =====================================================
 
     prompt = f"""
 You are an AI assistant inside a CRM system.
 
-Analyze the following CRM information and provide a concise,
-professional summary.
+Create a concise and professional summary of this CRM record.
 
-CRM DATA:
-{data}
+CRM MODULE:
+{module_name}
 
-Return the response in this format:
+CRM RECORD ID:
+{object_id}
+
+CRM RECORD DATA:
+{crm_data}
+
+RULES:
+
+1. Use ONLY the information provided.
+2. Never invent information.
+3. Do not create fake activities.
+4. Do not assume missing information.
+5. Keep the summary concise.
+6. Adapt the summary to the CRM module.
+7. Focus on information useful to a CRM user.
+
+Return:
 
 Summary:
-Brief overview of the customer or entity.
+A brief overview of the record.
 
 Key Information:
 - Important information
-- Important business details
-
-Recent Activity:
-- Important recent activities
+- Important business/customer details
+- Current status/stage if available
 
 Current Status:
-Current situation or status.
+The current status based only on the provided data.
 
 Next Actions:
-- Action 1
-- Action 2
-- Action 3
+- Practical next actions based only on the available information.
 
-Rules:
-- Use only the information provided.
-- Do not invent information.
-- Do not assume missing information.
-- Keep the response professional.
-- Keep the response concise.
-- Use clear and simple language.
+If information is unavailable, omit it.
 """
 
-    # -------------------------------------------------
-    # Generate Gemini Response
-    # -------------------------------------------------
+    # =====================================================
+    # MODELS
+    # =====================================================
 
-    try:
+    models = [
+        PRIMARY_MODEL,
+        FALLBACK_MODEL,
+    ]
 
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-        )
+    last_error = None
 
-        # -------------------------------------------------
-        # Check response
-        # -------------------------------------------------
+    # =====================================================
+    # TRY MODELS
+    # =====================================================
 
-        if not response:
-            raise Exception(
-                "Gemini returned an empty response."
-            )
+    for model in models:
 
-        if not response.text:
-            raise Exception(
-                "Gemini returned no text."
-            )
+        for attempt in range(3):
 
-        return response.text.strip()
+            try:
 
-    except Exception as e:
+                print(
+                    f"Trying Gemini model: {model} "
+                    f"(attempt {attempt + 1}/3)"
+                )
 
-        raise Exception(
-            f"Gemini AI error: {str(e)}"
-        )
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+
+                summary = response.text
+
+                if not summary:
+                    raise Exception(
+                        "Gemini returned an empty response."
+                    )
+
+                print(
+                    f"Gemini success using model: {model}"
+                )
+
+                return summary.strip()
+
+            except Exception as e:
+
+                last_error = e
+
+                error_text = str(e)
+
+                print(
+                    f"Gemini error using {model}: "
+                    f"{error_text}"
+                )
+
+                # =================================================
+                # RETRY TEMPORARY ERRORS
+                # =================================================
+
+                temporary_error = (
+                    "503" in error_text
+                    or "UNAVAILABLE" in error_text
+                    or "high demand" in error_text.lower()
+                    or "temporarily" in error_text.lower()
+                )
+
+                if temporary_error:
+
+                    if attempt < 2:
+
+                        wait_time = 2 ** attempt
+
+                        print(
+                            f"Gemini temporarily unavailable. "
+                            f"Retrying in {wait_time} seconds..."
+                        )
+
+                        time.sleep(
+                            wait_time
+                        )
+
+                        continue
+
+                # =================================================
+                # MOVE TO FALLBACK MODEL
+                # =================================================
+
+                break
+
+    # =========================================================
+    # ALL MODELS FAILED
+    # =========================================================
+
+    raise Exception(
+        f"Gemini AI error: {str(last_error)}"
+    )

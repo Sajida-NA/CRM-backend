@@ -667,21 +667,62 @@
 
 #     return summary
 
-
 from google import genai
 from decouple import config
 
 
-GEMINI_API_KEY = config("GEMINI_API_KEY")
+# =====================================================
+# GEMINI CONFIGURATION
+# =====================================================
 
-client = genai.Client(
-    api_key=GEMINI_API_KEY
+GEMINI_API_KEY = config(
+    "GEMINI_API_KEY",
+    default="",
 )
+
+
+client = None
+
+if GEMINI_API_KEY:
+    client = genai.Client(
+        api_key=GEMINI_API_KEY
+    )
+
+
+# =====================================================
+# GEMINI MODEL
+# =====================================================
 
 GEMINI_MODEL = "gemini-3.8-flash"
 
 
+# =====================================================
+# AI SUMMARY
+# =====================================================
+
 def generate_ai_summary(data):
+
+    # -------------------------------------------------
+    # Check Gemini configuration
+    # -------------------------------------------------
+
+    if client is None:
+        raise Exception(
+            "GEMINI_API_KEY is not configured."
+        )
+
+    # -------------------------------------------------
+    # Check CRM data
+    # -------------------------------------------------
+
+    if not data:
+        raise Exception(
+            "CRM data is required."
+        )
+
+    # -------------------------------------------------
+    # AI Prompt
+    # -------------------------------------------------
 
     prompt = f"""
 You are an AI assistant inside a CRM system.
@@ -695,7 +736,7 @@ CRM DATA:
 Return the response in this format:
 
 Summary:
-Brief overview of the customer/entity.
+Brief overview of the customer or entity.
 
 Key Information:
 - Important information
@@ -705,7 +746,7 @@ Recent Activity:
 - Important recent activities
 
 Current Status:
-Current situation/status.
+Current situation or status.
 
 Next Actions:
 - Action 1
@@ -715,17 +756,41 @@ Next Actions:
 Rules:
 - Use only the information provided.
 - Do not invent information.
+- Do not assume missing information.
 - Keep the response professional.
-- Keep it concise.
+- Keep the response concise.
+- Use clear and simple language.
 """
 
+    # -------------------------------------------------
+    # Generate Gemini Response
+    # -------------------------------------------------
+
     try:
+
         response = client.models.generate_content(
             model=GEMINI_MODEL,
             contents=prompt,
         )
 
-        return response.text
+        # -------------------------------------------------
+        # Check response
+        # -------------------------------------------------
+
+        if not response:
+            raise Exception(
+                "Gemini returned an empty response."
+            )
+
+        if not response.text:
+            raise Exception(
+                "Gemini returned no text."
+            )
+
+        return response.text.strip()
 
     except Exception as e:
-        raise Exception(f"Gemini AI error: {str(e)}")
+
+        raise Exception(
+            f"Gemini AI error: {str(e)}"
+        )

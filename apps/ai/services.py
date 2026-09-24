@@ -900,14 +900,7 @@ from google import genai
 from decouple import config
 
 
-# =========================================================
-# GEMINI CONFIGURATION
-# =========================================================
-
-GEMINI_API_KEY = config(
-    "GEMINI_API_KEY",
-    default=""
-)
+GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
 
 PRIMARY_MODEL = "gemini-3.5-flash-lite"
 FALLBACK_MODEL = "gemini-3.5-flash"
@@ -915,48 +908,26 @@ FALLBACK_MODEL = "gemini-3.5-flash"
 client = None
 
 if GEMINI_API_KEY:
-    client = genai.Client(
-        api_key=GEMINI_API_KEY
-    )
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
-
-# =========================================================
-# GENERATE AI SUMMARY
-# =========================================================
 
 def generate_ai_summary(data):
 
-    # -----------------------------------------------------
-    # VALIDATION
-    # -----------------------------------------------------
-
     if not GEMINI_API_KEY:
-        raise Exception(
-            "GEMINI_API_KEY is not configured on the server."
-        )
+        raise Exception("GEMINI_API_KEY is not configured on Render.")
 
     if client is None:
-        raise Exception(
-            "Gemini client is not initialized."
-        )
+        raise Exception("Gemini client is not initialized.")
 
     if not data:
-        raise Exception(
-            "CRM data is empty."
-        )
+        raise Exception("CRM data is empty.")
 
     module = data.get("module", "CRM")
     object_id = data.get("object_id")
     crm_data = data.get("crm_data")
 
     if not crm_data:
-        raise Exception(
-            "CRM record data is empty."
-        )
-
-    # -----------------------------------------------------
-    # MODULE NAME
-    # -----------------------------------------------------
+        raise Exception("CRM record data is empty.")
 
     module_names = {
         "lead": "Lead",
@@ -970,14 +941,10 @@ def generate_ai_summary(data):
         str(module).title()
     )
 
-    # -----------------------------------------------------
-    # PROMPT
-    # -----------------------------------------------------
-
     prompt = f"""
 You are an AI assistant inside a CRM system.
 
-Create a concise and professional summary of this CRM record.
+Create a concise professional summary of this CRM record.
 
 CRM MODULE:
 {module_name}
@@ -988,102 +955,55 @@ CRM RECORD ID:
 CRM RECORD DATA:
 {crm_data}
 
-RULES:
-
-1. Use ONLY the information provided.
+Rules:
+1. Use only the information provided.
 2. Never invent information.
 3. Do not create fake activities.
 4. Do not assume missing information.
 5. Keep the summary concise.
-6. Adapt the summary to the CRM module.
-7. Focus on information useful to a CRM user.
+6. Focus on information useful to a CRM user.
 
 Return:
 
 Summary:
-A brief overview of the record.
+A brief overview.
 
 Key Information:
 - Important information
 - Important business/customer details
-- Current status/stage if available
+- Current status if available
 
 Current Status:
 The current status based only on the provided data.
 
 Next Actions:
-- Practical next actions based only on the available information.
+- Practical next actions based only on available information.
 
 If information is unavailable, omit it.
 """
 
-    # -----------------------------------------------------
-    # MODELS
-    # -----------------------------------------------------
-
-    models = [
-        PRIMARY_MODEL,
-        FALLBACK_MODEL,
-    ]
-
-    errors = []
-
-    # -----------------------------------------------------
-    # TRY EACH MODEL ONCE
-    # -----------------------------------------------------
-
-    for model in models:
+    for model in [PRIMARY_MODEL, FALLBACK_MODEL]:
 
         try:
-
-            print(
-                f"Trying Gemini model: {model}"
-            )
+            print(f"Trying Gemini model: {model}")
 
             response = client.models.generate_content(
                 model=model,
                 contents=prompt,
             )
 
-            summary = getattr(
-                response,
-                "text",
-                None
-            )
+            summary = getattr(response, "text", None)
 
-            if not summary:
-                raise Exception(
-                    "Gemini returned an empty response."
-                )
+            if summary:
+                print(f"Gemini success using model: {model}")
+                return summary.strip()
 
-            print(
-                f"Gemini success using model: {model}"
-            )
-
-            return summary.strip()
+            print(f"Empty response from {model}")
 
         except Exception as e:
-
-            error_text = str(e)
-
-            errors.append(
-                f"{model}: {error_text}"
-            )
-
-            print(
-                f"Gemini error using {model}: "
-                f"{error_text}"
-            )
-
-            # Continue immediately to fallback model.
+            print(f"Gemini error using {model}: {e}")
             continue
 
-    # -----------------------------------------------------
-    # ALL MODELS FAILED
-    # -----------------------------------------------------
-
     raise Exception(
-        "Gemini AI is temporarily unavailable. "
-        "Please try again shortly. "
-        + " | ".join(errors)
+        "Gemini AI is temporarily unavailable. Please try again."
     )
